@@ -11,4 +11,4 @@ mod row;
 
 pub use error::StoreError;
 pub use open::Store;
-pub use row::{ApprovalRow, MessageRow, RunRow, TaskRow};
+pub use row::{ApprovalRow, MessageRow, RunRow, SpaceRow, TaskRow};

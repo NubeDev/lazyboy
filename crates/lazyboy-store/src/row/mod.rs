@@ -6,9 +6,11 @@ mod approval;
 mod decode;
 mod message;
 mod run;
+mod space;
 mod task;
 
 pub use approval::ApprovalRow;
 pub use message::MessageRow;
 pub use run::RunRow;
+pub use space::SpaceRow;
 pub use task::TaskRow;

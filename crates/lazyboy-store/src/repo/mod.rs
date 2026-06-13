@@ -7,6 +7,8 @@ mod clock;
 
 pub mod approval;
 pub mod bootstrap;
+pub mod identity;
 pub mod message;
 pub mod run;
+pub mod space;
 pub mod task;

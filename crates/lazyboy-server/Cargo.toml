@@ -1,0 +1,35 @@
+# The browser-shell backend: exposes the lazyboy core over HTTP+SSE so
+# the one React UI can talk to it through its HttpRpcClient (SCOPE.md
+# "UI: one React app, two shells"). Host-side by definition — it owns
+# the live goose transport through adapters-host — so it lives outside
+# the mobile-safe crate graph.
+[package]
+name = "lazyboy-server"
+version = "0.0.0"
+edition.workspace = true
+rust-version = "1.85"
+license.workspace = true
+
+[[bin]]
+name = "lazyboy-server"
+path = "src/main.rs"
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+lazyboy-core.workspace = true
+lazyboy-bridge.workspace = true
+lazyboy-adapters-host.workspace = true
+axum.workspace = true
+tower-http.workspace = true
+futures-util.workspace = true
+async-stream = "0.3"
+serde.workspace = true
+serde_json.workspace = true
+time.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "signal"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tower = { version = "0.5", features = ["util"] }
+http-body-util = "0.1"

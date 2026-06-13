@@ -39,6 +39,9 @@ impl Store {
         sqlx::query(include_str!("migrations/0001_timeline.sql"))
             .execute(&self.pool)
             .await?;
+        sqlx::query(include_str!("migrations/0002_domain.sql"))
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 }
