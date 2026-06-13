@@ -45,7 +45,7 @@ export class HttpRpcClient implements RpcClient {
     return this.get<Message[]>(`/spaces/${spaceId}/timeline`);
   }
   listPending(spaceId: string) {
-    return this.get<Approval[]>(`/spaces/${spaceId}/approvals`);
+    return this.get<Approval[]>(`/spaces/${spaceId}/pending`);
   }
   listTasks(spaceId: string) {
     return this.get<Task[]>(`/spaces/${spaceId}/tasks`);
@@ -54,14 +54,14 @@ export class HttpRpcClient implements RpcClient {
     return this.get<AgentRun[]>(`/spaces/${spaceId}/runs`);
   }
   startRun(spaceId: string, prompt: string) {
-    return this.post<RunOutcome>(`/spaces/${spaceId}/runs`, { prompt });
+    return this.post<RunOutcome>(`/spaces/${spaceId}/run`, { prompt });
   }
   decide(approvalId: string, status: ApprovalStatus) {
     return this.post<RunOutcome>(`/approvals/${approvalId}/decision`, { status });
   }
 
   subscribe(spaceId: string, cb: () => void): () => void {
-    const url = new URL(`${this.base}/spaces/${spaceId}/events`);
+    const url = new URL(`${this.base}/spaces/${spaceId}/subscribe`);
     if (this.token) url.searchParams.set("token", this.token);
     const es = new EventSource(url);
     es.onmessage = () => cb();

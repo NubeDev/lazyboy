@@ -387,15 +387,19 @@ same `subscribe` events the Tauri shell delivers over its event channel. Build
 the `MockRpcClient` first so the full shell renders with no backend, then land
 the two real transports behind the same interface.
 
-_Status: the React app (`ui/lazyboy-ui/`) is built and green — the full
-cowork shell (space rail, timeline with inline approval cards, task/run
-panel), the `RpcClient` boundary, the `MockRpcClient` fixture, and both
+_Status: complete. The React app (`ui/lazyboy-ui/`) ships the full cowork
+shell (space rail, timeline with inline approval cards, task/run panel),
+the `RpcClient` boundary, the `MockRpcClient` fixture, and both
 real-transport clients (`shell/http.ts`, `shell/tauri.ts`) behind a
-shell-side `selectClient()`. It runs in the browser today against the mock.
-The open item is the two backend shells the real clients target: an
-`lazyboy-server` axum crate (HTTP + SSE + CORS over the existing core) and a
-Tauri 2 desktop crate exposing the same surface as commands + an event
-channel._
+shell-side `selectClient()`. Both backend shells the real clients target
+are now built: `lazyboy-server` (axum HTTP + SSE + CORS over the core,
+bearer-gated per R4, with the SSE endpoint accepting the token as a query
+param since `EventSource` cannot set a header) and `lazyboy-tauri` (Tauri 2
+desktop exposing the same surface as commands + a polling event channel,
+with the GUI/webview behind a non-default `app` feature so the default
+workspace build needs no system webkit). The shared wire DTOs live in
+`lazyboy-wire` so neither shell depends on the other, and the HTTP client's
+routes match the server (`/pending`, `/run`, `/subscribe`)._
 
 ## Cross-cutting rules
 
@@ -431,26 +435,55 @@ shipping none; this order ships value at step 1.
    the approval-in-thread loop, driving `goosed` for a single space. Survives
    restart, including the crash-resume reconcile for a pending approval. This is
    the magic moment — prove it on one machine.
-   _Status: the engine, store, host transport, and a thin `lazyboy` CLI
-   shell (`crates/lazyboy-cli`: init / run / approve / deny / pending /
-   timeline) are built and green. The whole stack is verified end to end
+   _Status: complete. The engine, store, host transport, and the `lazyboy`
+   CLI shell (`crates/lazyboy-cli`: init / run / approve / deny / pending /
+   timeline / cancel / retry) are built and green, verified end to end
    against an in-process fake goose (`GOOSE-ACP.md` "Test strategy"). The
-   one open item is running it against a live `goose serve` with a
-   configured provider — blocked in CI by the sandbox refusing to launch
-   the binary, not by missing code._
+   live transport (`GooseServeClient`) now passes the ACP handshake against
+   a real `goose serve` (the relative-`cwd` bug is fixed — goose requires
+   an absolute path); a full model turn still needs a configured provider._
 2. **Bridge hardening.** Full run-event import (SSE -> `agent_run_events`),
    artifacts imported, cancel and retry, the approval queue view.
+   _Status: implemented. Artifacts import on an explicit locator in the tool
+   output (never scraped from free text); `Engine::cancel_run`/`retry_run`
+   with the run prompt persisted as the first event so retry re-drives from
+   SQLite; workspace-wide pending-approval queue. Tested against FakeGoose._
 3. **Integrations as ingress.** GitHub + Gmail first, as messages flowing into
    bound spaces, deduped through `ingress_events`. Then outbound via MCP exts,
    gated by approvals.
+   _Status: implemented. `lazyboy-ingress` normalizes GitHub/Gmail payloads
+   (pure, mobile-safe) and resolves the bound space from explicit
+   `config_json` bindings; `repo::ingress::ingest` enforces the
+   `(integration_id, external_id)` dedup so a redelivery never doubles a
+   message; server webhook sink. Outbound stays approval-gated Goose MCP
+   tool calls. Live fetch/OAuth/webhook-signature verification is the
+   documented host-side TODO (`DOCS/INGRESS.md`)._
 4. **Calendar, reminders, decisions** as the space's durable memory.
+   _Status: implemented. Store rows/repos for all three (reminders carry a
+   due-query and status transitions; calendar upserts dedupe on
+   `space+source+external_ref`) plus server endpoints._
 5. **Zenoh sync.** Peer-to-peer and broker modes, once the local event model is
    stable and the mutable-row merge rule is decided.
+   _Status: implemented behind a non-default feature. The outbox writer
+   (transactional per-aggregate seq) is wired into message append and task
+   set_state; `lazyboy-sync` carries the publish/subscribe over zenoh with
+   the dep feature-gated off by default so the default build needs no
+   network. Open Question 1 is resolved as last-writer-wins on `created_at`
+   (seq tie-break) for mutable rows, union-merge for append-only messages
+   (`DOCS/ZENOH.md`). The remaining outbox call-sites are a documented
+   integration checklist._
 6. **Workflows, automation, and membership.** Triggers (feed + schedule), saved
    workflows with a per-workflow approval policy, the workflow agent, and the
    user/group + feed-visibility model. Built once feeds (step 3) exist to
    trigger on and the team layer (step 5) gives more than one human to share a
    feed with.
+   _Status: implemented. `Engine::run_workflow` honours the per-workflow
+   approval policy — auto-approve writes the durable `approvals` row then
+   resolves it (R6 audit invariant: write-then-resolve, never bypass) — and
+   `dispatch_feed_event` is the workflow-agent selector. Membership and
+   feed-visibility are modeled (tables, repos, endpoints) but not enforced
+   in the auth gate under R4 until promoted (`DOCS/WORKFLOWS.md`). The live
+   trigger/scheduler daemon is the documented host-side integration point._
 
 Out until step 1 works end to end: Zenoh, multi-workspace, mobile shells,
 auto-routing of ingress, anything multi-tenant.
@@ -473,8 +506,10 @@ auto-routing of ingress, anything multi-tenant.
 
 ## Open questions
 
-1. **Mutable-row merge under Zenoh.** Last-writer-wins vs. a small CRDT for task
-   state and approval status. Must be answered before sync turns on.
+1. **Mutable-row merge under Zenoh.** _Resolved (`DOCS/ZENOH.md`):
+   last-writer-wins on the event's `created_at`, ties broken by per-aggregate
+   `seq`; append-only messages are union-merged and never enter LWW. A CRDT
+   can replace LWW later without changing the outbox event model._
 2. **Re-drive determinism.** When the bridge re-drives a Goose session after a
    mid-approval crash, does the same tool call reliably reappear, or is a
    capture-and-replay-the-tool-result approach needed for the edge case? Confirm
