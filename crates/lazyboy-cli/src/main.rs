@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 use lazyboy_cli::{commands, CliError, Config};
 use lazyboy_store::Store;
-use lazyboy_types::domain::{Approval, ApprovalStatus};
+use lazyboy_types::domain::{AgentRun, Approval, ApprovalStatus};
 use lazyboy_types::Id;
 
 const USAGE: &str = "\
@@ -20,6 +20,8 @@ usage:
   lazyboy run <prompt>                 start a run; pause on the first approval
   lazyboy approve <approval-id>        approve a pending tool, resume the run
   lazyboy deny <approval-id>           deny a pending tool, resume the run
+  lazyboy cancel <run-id>              cancel a run, deny its pending approval
+  lazyboy retry <run-id>               start a fresh run with the same prompt
   lazyboy pending                      list approvals awaiting a decision
   lazyboy timeline                     print the space timeline
 
@@ -74,6 +76,14 @@ async fn dispatch() -> Result<(), CliError> {
         }
         "approve" => decide_cmd(&store, &db, &args, ApprovalStatus::Approved).await,
         "deny" => decide_cmd(&store, &db, &args, ApprovalStatus::Denied).await,
+        "cancel" => {
+            let run_id = run_id_arg(&args)?;
+            commands::cancel(&store, &load_config(&db)?, run_id).await
+        }
+        "retry" => {
+            let run_id = run_id_arg(&args)?;
+            commands::retry(&store, &load_config(&db)?, &goose_url(), run_id).await
+        }
         "pending" => commands::pending(&store, &load_config(&db)?).await,
         "timeline" => commands::timeline(&store, &load_config(&db)?).await,
         other => Err(CliError::Usage(format!("unknown command: {other}"))),
@@ -93,6 +103,15 @@ async fn decide_cmd(
         .map_err(|_| CliError::Usage(format!("not a valid approval id: {raw}")))?;
     let approval_id = Id::<Approval>::from_uuid(uuid);
     commands::decide(store, &load_config(db)?, &goose_url(), approval_id, status).await
+}
+
+fn run_id_arg(args: &[String]) -> Result<Id<AgentRun>, CliError> {
+    let raw = args
+        .get(1)
+        .ok_or_else(|| CliError::Usage("need a run id".into()))?;
+    let uuid = uuid::Uuid::from_str(raw)
+        .map_err(|_| CliError::Usage(format!("not a valid run id: {raw}")))?;
+    Ok(Id::<AgentRun>::from_uuid(uuid))
 }
 
 fn load_config(db: &str) -> Result<Config, CliError> {

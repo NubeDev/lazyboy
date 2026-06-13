@@ -45,7 +45,20 @@ pub fn router(state: AppState) -> Router {
         .route("/spaces/{id}/runs", get(routes::list_runs))
         .route("/spaces/{id}/run", post(routes::start_run))
         .route("/spaces/{id}/subscribe", get(routes::subscribe))
+        .route(
+            "/spaces/{id}/decisions",
+            get(routes::list_decisions).post(routes::record_decision),
+        )
+        .route(
+            "/spaces/{id}/reminders",
+            get(routes::list_reminders).post(routes::create_reminder),
+        )
+        .route(
+            "/spaces/{id}/calendar",
+            get(routes::list_calendar).post(routes::upsert_calendar),
+        )
         .route("/approvals/{id}/decision", post(routes::decide))
+        .route("/reminders/{id}/dismiss", post(routes::dismiss_reminder))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::require_bearer,

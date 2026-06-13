@@ -32,6 +32,7 @@ pub async fn import_update(
             record_event(store, ctx, seq, "tool_result", output_json).await?;
             let body = format!("{tool_name}: {output_json}");
             append(store, ctx, MessageKind::ToolResult, &body, None).await?;
+            import_artifact(store, ctx, output_json).await?;
             Ok(Imported::Recorded)
         }
 
@@ -77,6 +78,43 @@ pub async fn import_update(
             })
         }
     }
+}
+
+/// Promote a tool result to a durable artifact when it carries an
+/// explicit output locator (a written file, a URL, a PR, a patch). The
+/// `tool_result` message already records what ran; the artifact row and
+/// its `artifact_ref` message are the run's *output*, the thing the
+/// space keeps after the run ends (SCOPE.md "results land back as
+/// artifacts"). A result with no locator stays a plain tool result.
+async fn import_artifact(
+    store: &Store,
+    ctx: &ImportContext,
+    output_json: &str,
+) -> Result<(), BridgeError> {
+    let Some(detected) = super::artifact::detect(output_json) else {
+        return Ok(());
+    };
+    let artifact_id = repo::artifact::create(
+        store,
+        repo::artifact::NewArtifact {
+            space_id: ctx.space_id,
+            agent_run_id: ctx.agent_run_id,
+            kind: detected.kind,
+            uri: &detected.uri,
+            meta_json: Some(output_json),
+        },
+    )
+    .await?;
+    let body = format!("{}: {}", detected.kind, detected.uri);
+    append(
+        store,
+        ctx,
+        MessageKind::ArtifactRef,
+        &body,
+        Some(artifact_id.to_string()),
+    )
+    .await?;
+    Ok(())
 }
 
 async fn record_event(

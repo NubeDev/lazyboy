@@ -7,11 +7,13 @@
 //! The engine is generic over `GooseClient`, so the same logic runs
 //! against the live transport or `FakeGoose` with no code change.
 
+mod cancel_run;
 mod drive;
 mod engine;
 mod error;
 mod reconcile;
 mod resolve_approval;
+mod retry_run;
 mod start_run;
 
 pub use engine::Engine;

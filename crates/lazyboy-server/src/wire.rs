@@ -1,12 +1,22 @@
 use serde::{Deserialize, Serialize};
 
 use lazyboy_core::RunOutcome;
-use lazyboy_store::{ApprovalRow, MessageRow, RunRow, SpaceRow, TaskRow};
+use lazyboy_store::{
+    ApprovalRow, CalendarEventRow, DecisionRow, MessageRow, ReminderRow, RunRow, SpaceRow, TaskRow,
+};
 use lazyboy_types::domain::{
-    AgentRun, Approval, ApprovalStatus, Message, MessageKind, RunStatus, Space, Task, TaskState,
-    Workspace,
+    AgentRun, Approval, ApprovalStatus, CalendarEvent, Decision, Identity, Message, MessageKind,
+    Reminder, ReminderStatus, RunStatus, Space, Task, TaskState, Workspace,
 };
 use lazyboy_types::Id;
+
+/// RFC3339 rendering shared by the durable-memory DTOs, matching the
+/// text columns and the JS `Date` parser; a formatting miss is reported
+/// as an empty string rather than failing the whole response.
+fn rfc3339(ts: time::OffsetDateTime) -> String {
+    ts.format(&time::format_description::well_known::Rfc3339)
+        .unwrap_or_default()
+}
 
 /// Wire shapes for the `RpcClient` surface (SCOPE.md). The store row
 /// types are not `Serialize` (they decode SQLite, a separate concern),
@@ -149,6 +159,118 @@ impl From<RunOutcome> for RunOutcomeDto {
             RunOutcome::Ended { succeeded } => Self::Ended { succeeded },
         }
     }
+}
+
+#[derive(Serialize)]
+pub struct DecisionDto {
+    pub id: Id<Decision>,
+    pub space_id: Id<Space>,
+    pub message_id: Option<Id<Message>>,
+    pub summary: String,
+    pub decided_by_identity_id: Option<Id<Identity>>,
+    pub decided_at: String,
+}
+
+impl From<DecisionRow> for DecisionDto {
+    fn from(r: DecisionRow) -> Self {
+        Self {
+            id: r.id,
+            space_id: r.space_id,
+            message_id: r.message_id,
+            summary: r.summary,
+            decided_by_identity_id: r.decided_by_identity_id,
+            decided_at: rfc3339(r.decided_at),
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct ReminderDto {
+    pub id: Id<Reminder>,
+    pub space_id: Id<Space>,
+    pub task_id: Option<Id<Task>>,
+    pub due_at: String,
+    pub body: String,
+    pub status: ReminderStatus,
+}
+
+impl From<ReminderRow> for ReminderDto {
+    fn from(r: ReminderRow) -> Self {
+        Self {
+            id: r.id,
+            space_id: r.space_id,
+            task_id: r.task_id,
+            due_at: rfc3339(r.due_at),
+            body: r.body,
+            status: r.status,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct CalendarEventDto {
+    pub id: Id<CalendarEvent>,
+    pub space_id: Id<Space>,
+    pub source: String,
+    pub external_ref: Option<String>,
+    pub title: String,
+    pub starts_at: String,
+    pub ends_at: Option<String>,
+    pub meta_json: Option<String>,
+}
+
+impl From<CalendarEventRow> for CalendarEventDto {
+    fn from(r: CalendarEventRow) -> Self {
+        Self {
+            id: r.id,
+            space_id: r.space_id,
+            source: r.source,
+            external_ref: r.external_ref,
+            title: r.title,
+            starts_at: rfc3339(r.starts_at),
+            ends_at: r.ends_at.map(rfc3339),
+            meta_json: r.meta_json,
+        }
+    }
+}
+
+/// `POST /spaces/:id/decisions` body. `message_id` and the author are
+/// optional, mirroring the row: a decision can be recorded without an
+/// anchoring message.
+#[derive(Deserialize)]
+pub struct RecordDecisionBody {
+    pub summary: String,
+    #[serde(default)]
+    pub message_id: Option<Id<Message>>,
+    #[serde(default)]
+    pub decided_by_identity_id: Option<Id<Identity>>,
+}
+
+/// `POST /spaces/:id/reminders` body. Timestamps cross the wire as
+/// RFC3339 strings (the column format, shared with the TS client) and
+/// are parsed in the handler; the `time` serde default is not RFC3339.
+#[derive(Deserialize)]
+pub struct CreateReminderBody {
+    pub body: String,
+    pub due_at: String,
+    #[serde(default)]
+    pub task_id: Option<Id<Task>>,
+}
+
+/// `POST /spaces/:id/calendar` body. `external_ref` present marks a
+/// synced event the upsert dedups on; absent is a fresh local event.
+/// Timestamps are RFC3339 strings parsed in the handler.
+#[derive(Deserialize)]
+pub struct UpsertCalendarBody {
+    pub source: String,
+    pub title: String,
+    pub starts_at: String,
+    #[serde(default)]
+    pub external_ref: Option<String>,
+    #[serde(default)]
+    pub ends_at: Option<String>,
+    #[serde(default)]
+    pub meta_json: Option<String>,
 }
 
 #[derive(Deserialize)]

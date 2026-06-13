@@ -12,4 +12,10 @@ pub enum CoreError {
     /// id for — only reachable if state was hand-edited.
     #[error("run {0} has no pending permission to resume")]
     NoPendingPermission(String),
+
+    /// A retry was asked for a run that has no recorded prompt event —
+    /// only reachable if the run predates prompt recording or state was
+    /// hand-edited.
+    #[error("run {0} has no recorded prompt to retry")]
+    NoPrompt(String),
 }

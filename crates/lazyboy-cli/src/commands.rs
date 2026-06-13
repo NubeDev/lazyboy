@@ -1,7 +1,7 @@
 use lazyboy_adapters_host::GooseServeClient;
 use lazyboy_core::{Engine, RunOutcome};
 use lazyboy_store::{repo, Store};
-use lazyboy_types::domain::{Approval, ApprovalStatus};
+use lazyboy_types::domain::{AgentRun, Approval, ApprovalStatus};
 use lazyboy_types::Id;
 
 use crate::config::Config;
@@ -135,6 +135,44 @@ async fn print_new_messages(store: &Store, cfg: &Config, before: usize) -> Resul
     {
         println!("[{}] {}", m.kind.as_str(), m.body);
     }
+    Ok(())
+}
+
+/// Cancel a run: mark it cancelled and deny any approval parked on it.
+/// Deliberately does not connect to goose — cancel is pure store work
+/// (the durable rows are the truth, SCOPE.md R1), so it must succeed
+/// even when goose is down, which is exactly when a stuck run is
+/// cancelled. Mirrors `Engine::cancel_run` without a transport.
+pub async fn cancel(store: &Store, cfg: &Config, run_id: Id<AgentRun>) -> Result<(), CliError> {
+    let run = repo::run::get(store, run_id).await?;
+    repo::approval::deny_pending_for_run(store, run_id, cfg.human).await?;
+    repo::run::set_status(store, run_id, lazyboy_types::domain::RunStatus::Cancelled).await?;
+    repo::task::set_state(
+        store,
+        run.task_id,
+        lazyboy_types::domain::TaskState::Cancelled,
+    )
+    .await?;
+    println!("cancelled run {run_id}");
+    Ok(())
+}
+
+/// Retry a run: start a fresh run for the same task with the same
+/// prompt, and report where it paused.
+pub async fn retry(
+    store: &Store,
+    cfg: &Config,
+    goose_url: &str,
+    run_id: Id<AgentRun>,
+) -> Result<(), CliError> {
+    let client = GooseServeClient::connect(goose_url).await?;
+    let engine = Engine::new(store.clone(), client, cfg.agent);
+    engine.reconcile().await?;
+
+    let before = repo::message::list(store, cfg.space).await?.len();
+    let started = engine.retry_run(run_id).await?;
+    print_new_messages(store, cfg, before).await?;
+    report_outcome(&started.outcome, store, cfg).await?;
     Ok(())
 }
 

@@ -6,9 +6,13 @@
 mod clock;
 
 pub mod approval;
+pub mod artifact;
 pub mod bootstrap;
+pub mod calendar;
+pub mod decision;
 pub mod identity;
 pub mod message;
+pub mod reminder;
 pub mod run;
 pub mod space;
 pub mod task;

@@ -3,6 +3,7 @@
 //! the single-event mapping so the two concerns stay separable and
 //! independently testable.
 
+mod artifact;
 mod context;
 mod outcome;
 mod update;

@@ -11,4 +11,7 @@ mod row;
 
 pub use error::StoreError;
 pub use open::Store;
-pub use row::{ApprovalRow, MessageRow, RunRow, SpaceRow, TaskRow};
+pub use row::{
+    ApprovalRow, ArtifactRow, CalendarEventRow, DecisionRow, MessageRow, ReminderRow, RunRow,
+    SpaceRow, TaskRow,
+};

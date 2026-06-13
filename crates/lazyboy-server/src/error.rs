@@ -9,6 +9,7 @@ use serde_json::json;
 #[derive(Debug)]
 pub enum ApiError {
     Unauthorized,
+    BadRequest(String),
     NotFound(String),
     Store(lazyboy_store::StoreError),
     Core(lazyboy_core::CoreError),
@@ -41,6 +42,7 @@ impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, message) = match self {
             ApiError::Unauthorized => (StatusCode::UNAUTHORIZED, "unauthorized".to_owned()),
+            ApiError::BadRequest(what) => (StatusCode::BAD_REQUEST, what),
             ApiError::NotFound(what) => (StatusCode::NOT_FOUND, what),
             ApiError::Store(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
             ApiError::Core(e) => (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),

@@ -15,3 +15,11 @@ pub enum AgentRun {}
 pub enum Approval {}
 #[derive(Clone, Copy, Debug)]
 pub enum Identity {}
+#[derive(Clone, Copy, Debug)]
+pub enum Decision {}
+#[derive(Clone, Copy, Debug)]
+pub enum Reminder {}
+#[derive(Clone, Copy, Debug)]
+pub enum CalendarEvent {}
+#[derive(Clone, Copy, Debug)]
+pub enum Artifact {}

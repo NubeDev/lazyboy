@@ -39,6 +39,23 @@ impl<G: GooseClient> Engine<G> {
 
         let session = self.goose.new_session().await?;
         repo::run::set_session(&self.store, run_id, session.as_str()).await?;
+
+        // Persist the prompt as the run's first event so a retry can
+        // re-send the same prompt from the durable stream (SCOPE.md R1),
+        // never an in-memory copy. The seq is drawn from the same
+        // per-run counter drive() uses, so it occupies slot 1 and the
+        // imported updates number from 2.
+        repo::run::append_event(
+            &self.store,
+            repo::run::NewRunEvent {
+                run_id,
+                seq: self.next_seq(run_id),
+                kind: "prompt",
+                payload_json: prompt,
+            },
+        )
+        .await?;
+
         self.goose.prompt(&session, prompt).await?;
 
         let outcome = match self.drive(run_id).await? {

@@ -7,6 +7,7 @@ mod create;
 mod event_count;
 mod get;
 mod list;
+mod prompt_of;
 mod set_session;
 mod set_status;
 
@@ -15,5 +16,6 @@ pub use create::create;
 pub use event_count::event_count;
 pub use get::get;
 pub use list::list;
+pub use prompt_of::prompt_of;
 pub use set_session::set_session;
 pub use set_status::set_status;
