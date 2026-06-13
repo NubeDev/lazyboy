@@ -8,3 +8,6 @@
 .DS_Store
 
 /.claude/
+
+.lazyboy-server.pid
+.lazyboy-server.log
