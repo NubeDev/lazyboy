@@ -1,6 +1,6 @@
 import { Bot, User, Terminal, FileOutput, Inbox, Settings2 } from "lucide-react";
 import type { Message, MessageKind } from "@/rpc/types";
-import { relativeTime } from "@/lib/labels";
+import { authorFor, relativeTime } from "@/lib/labels";
 import { cn } from "@/lib/utils";
 
 const kindIcon: Record<MessageKind, typeof Bot> = {
@@ -36,7 +36,7 @@ export function TimelineMessage({ message, now }: Props) {
       </div>
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm font-medium">{message.authorName}</span>
+          <span className="text-sm font-medium">{authorFor(message.kind)}</span>
           <span className="text-xs text-muted-foreground">{relativeTime(message.ts, now)}</span>
         </div>
         <div

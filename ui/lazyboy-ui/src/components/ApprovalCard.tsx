@@ -31,10 +31,10 @@ export function ApprovalCard({ approval, onDecide }: Props) {
       </div>
       <p className="mt-2 text-sm text-foreground">
         Goose wants to run{" "}
-        <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{approval.toolName}</code>
+        <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{approval.tool_name}</code>
       </p>
       <pre className="mt-3 max-h-48 overflow-auto rounded-lg bg-background/60 p-3 text-xs text-muted-foreground">
-        {approval.toolInputJson}
+        {approval.tool_input_json}
       </pre>
       <div className="mt-3 flex gap-2">
         <Button size="sm" variant="success" disabled={busy} onClick={() => decide("approved")}>

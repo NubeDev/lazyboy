@@ -1,4 +1,19 @@
-import type { ApprovalStatus, RunStatus, TaskState } from "@/rpc/types";
+import type { ApprovalStatus, MessageKind, RunStatus, TaskState } from "@/rpc/types";
+
+// The store has no author column on messages; the timeline shows who is
+// speaking by mapping the message kind. Human turns are the local user;
+// every agent/tool turn is the goose worker.
+export function authorFor(kind: MessageKind): string {
+  switch (kind) {
+    case "human":
+      return "You";
+    case "ingress":
+    case "system":
+      return "System";
+    default:
+      return "Goose";
+  }
+}
 
 type Tone = "neutral" | "accent" | "success" | "warning" | "danger";
 

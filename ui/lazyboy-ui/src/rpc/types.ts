@@ -1,7 +1,9 @@
-// Wire types. Each string union is the snake_case serde form already
-// emitted by the Rust domain enums (lazyboy-types), so the same JSON
-// crosses the Tauri and HTTP transports unchanged. Keep these identical
-// to the Rust side; a divergence is a wire bug, not a UI choice.
+// Wire types. Each interface mirrors a `lazyboy-wire` DTO field-for-field,
+// including snake_case names, so the same JSON crosses the HTTP and Tauri
+// transports unchanged. Keep these identical to the Rust side
+// (crates/lazyboy-wire/src/lib.rs); a divergence is a wire bug, not a UI
+// choice. String unions are the snake_case serde forms of the domain enums
+// in lazyboy-types.
 
 export type MessageKind =
   | "human"
@@ -32,48 +34,55 @@ export type ApprovalStatus = "pending" | "approved" | "denied";
 
 export interface Space {
   id: string;
+  workspace_id: string;
   slug: string;
   title: string;
-  status: "active" | "archived";
+  status: string;
 }
 
+// MessageDto carries no author column; the timeline derives a display
+// author from `kind` (see lib/labels). `ref_id` links a tool_request to
+// its pending approval.
 export interface Message {
   id: string;
-  spaceId: string;
-  authorName: string;
+  space_id: string;
   kind: MessageKind;
   body: string;
   ts: string;
-  refId: string | null;
+  ref_id: string | null;
 }
 
 export interface Task {
   id: string;
-  spaceId: string;
+  space_id: string;
   title: string;
   state: TaskState;
+  agent_run_id: string | null;
 }
 
+// RunDto has no timestamps: the store tracks status, not start/end times.
 export interface AgentRun {
   id: string;
-  spaceId: string;
-  taskId: string | null;
+  space_id: string;
+  task_id: string;
+  goose_session_id: string | null;
   status: RunStatus;
-  startedAt: string;
-  endedAt: string | null;
 }
 
 export interface Approval {
   id: string;
-  spaceId: string;
-  agentRunId: string;
-  toolName: string;
-  toolInputJson: string;
+  space_id: string;
+  agent_run_id: string;
+  goose_session_id: string;
+  tool_name: string;
+  tool_input_json: string;
   status: ApprovalStatus;
-  requestedAt: string;
 }
 
-// Mirrors lazyboy_core::RunOutcome.
+// Mirrors RunOutcomeDto: a `#[serde(tag = "outcome")]` enum. `decide`
+// returns `already_resolved` when a racing client resolved the approval
+// first (two browser tabs, one tenant).
 export type RunOutcome =
-  | { kind: "awaiting_approval" }
-  | { kind: "ended"; succeeded: boolean };
+  | { outcome: "awaiting_approval" }
+  | { outcome: "ended"; succeeded: boolean }
+  | { outcome: "already_resolved" };

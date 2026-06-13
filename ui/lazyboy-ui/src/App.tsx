@@ -98,7 +98,7 @@ export function App() {
             onSend={onSend}
             onDecide={onDecide}
           />
-          <TaskPanel tasks={tasks} runs={runs} now={now} />
+          <TaskPanel tasks={tasks} runs={runs} />
         </>
       ) : (
         <div className="flex flex-1 items-center justify-center text-muted-foreground">

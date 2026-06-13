@@ -50,11 +50,11 @@ export function SpaceTimeline({ space, messages, pending, now, onSend, onDecide 
         {messages.map((m) => (
           <div key={m.id} className="space-y-3">
             <TimelineMessage message={m} now={now} />
-            {m.kind === "tool_request" && m.refId && pendingByRef.has(m.refId) && (
+            {m.kind === "tool_request" && m.ref_id && pendingByRef.has(m.ref_id) && (
               <div className="pl-11">
                 <ApprovalCard
-                  approval={pendingByRef.get(m.refId)!}
-                  onDecide={(status) => onDecide(m.refId!, status)}
+                  approval={pendingByRef.get(m.ref_id)!}
+                  onDecide={(status) => onDecide(m.ref_id!, status)}
                 />
               </div>
             )}

@@ -1,15 +1,14 @@
 import { ListTodo, Activity } from "lucide-react";
 import type { AgentRun, Task } from "@/rpc/types";
 import { Badge } from "@/components/ui/badge";
-import { humanize, runStatusTone, taskStateTone, relativeTime } from "@/lib/labels";
+import { humanize, runStatusTone, taskStateTone } from "@/lib/labels";
 
 interface Props {
   tasks: Task[];
   runs: AgentRun[];
-  now: number;
 }
 
-export function TaskPanel({ tasks, runs, now }: Props) {
+export function TaskPanel({ tasks, runs }: Props) {
   return (
     <aside className="flex w-80 shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-surface px-4 py-5">
       <section>
@@ -43,9 +42,7 @@ export function TaskPanel({ tasks, runs, now }: Props) {
               key={r.id}
               className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-3 py-2"
             >
-              <span className="text-xs text-muted-foreground">
-                started {relativeTime(r.startedAt, now)}
-              </span>
+              <span className="font-mono text-xs text-muted-foreground">{r.id}</span>
               <Badge tone={runStatusTone[r.status]}>{humanize(r.status)}</Badge>
             </div>
           ))}
