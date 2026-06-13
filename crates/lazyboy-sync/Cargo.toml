@@ -1,0 +1,29 @@
+# Zenoh sync fabric (SCOPE.md "Zenoh sync fabric", build step 5). Host-only:
+# rides on the store's outbox_events, ships them over Zenoh, applies inbound
+# events back to the local store. zenoh is heavy networking and is feature-
+# gated (default off) so `cargo build --workspace` stays green without it; the
+# pure logic (LWW merge, drain mapping, serde) compiles and tests without it.
+[package]
+name = "lazyboy-sync"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+zenoh = ["dep:zenoh", "dep:sqlx"]
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+time.workspace = true
+tracing.workspace = true
+zenoh = { workspace = true, optional = true }
+sqlx = { workspace = true, optional = true }
+
+[dev-dependencies]
+tokio.workspace = true

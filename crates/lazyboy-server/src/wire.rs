@@ -2,11 +2,12 @@ use serde::{Deserialize, Serialize};
 
 use lazyboy_core::RunOutcome;
 use lazyboy_store::{
-    ApprovalRow, CalendarEventRow, DecisionRow, MessageRow, ReminderRow, RunRow, SpaceRow, TaskRow,
+    ApprovalRow, CalendarEventRow, DecisionRow, IntegrationRow, MessageRow, ReminderRow, RunRow,
+    SpaceRow, TaskRow,
 };
 use lazyboy_types::domain::{
-    AgentRun, Approval, ApprovalStatus, CalendarEvent, Decision, Identity, Message, MessageKind,
-    Reminder, ReminderStatus, RunStatus, Space, Task, TaskState, Workspace,
+    AgentRun, Approval, ApprovalStatus, CalendarEvent, Decision, Identity, Integration, Message,
+    MessageKind, Provider, Reminder, ReminderStatus, RunStatus, Space, Task, TaskState, Workspace,
 };
 use lazyboy_types::Id;
 
@@ -281,4 +282,67 @@ pub struct StartRunBody {
 #[derive(Deserialize)]
 pub struct DecisionBody {
     pub status: ApprovalStatus,
+}
+
+/// An integration projected for the UI. `secret_ref` is the only
+/// credential surface and it names a host secrets-store entry, never the
+/// raw token (SCOPE.md R5), so it is safe to project.
+#[derive(Serialize)]
+pub struct IntegrationDto {
+    pub id: Id<Integration>,
+    pub workspace_id: Id<Workspace>,
+    pub provider: Provider,
+    pub account_ref: Option<String>,
+    pub secret_ref: Option<String>,
+    pub status: String,
+    pub config_json: Option<String>,
+}
+
+impl From<IntegrationRow> for IntegrationDto {
+    fn from(r: IntegrationRow) -> Self {
+        Self {
+            id: r.id,
+            workspace_id: r.workspace_id,
+            provider: r.provider,
+            account_ref: r.account_ref,
+            secret_ref: r.secret_ref,
+            status: r.status,
+            config_json: r.config_json,
+        }
+    }
+}
+
+/// `POST /integrations` body. Carries `secret_ref` (a host secrets-store
+/// pointer), never a raw secret (SCOPE.md R5). `config_json` holds the
+/// explicit ingress bindings.
+#[derive(Deserialize)]
+pub struct CreateIntegrationBody {
+    pub workspace_id: Id<Workspace>,
+    pub provider: Provider,
+    #[serde(default)]
+    pub account_ref: Option<String>,
+    #[serde(default)]
+    pub secret_ref: Option<String>,
+    #[serde(default)]
+    pub config_json: Option<serde_json::Value>,
+}
+
+/// `POST /integrations/:id/ingress` body: a raw provider webhook/poll
+/// `payload`, plus an optional explicit `space_id`. When `space_id` is
+/// absent the bound space is resolved from the integration's
+/// `config_json` bindings (SCOPE.md explicit-binding routing).
+#[derive(Deserialize)]
+pub struct IngressBody {
+    pub payload: serde_json::Value,
+    #[serde(default)]
+    pub space_id: Option<Id<Space>>,
+}
+
+/// The result of an ingress POST: the timeline message the event mapped
+/// to, and whether the call was a deduped redelivery (SCOPE.md ingress
+/// idempotency boundary).
+#[derive(Serialize)]
+pub struct IngestResultDto {
+    pub message_id: Id<Message>,
+    pub deduped: bool,
 }

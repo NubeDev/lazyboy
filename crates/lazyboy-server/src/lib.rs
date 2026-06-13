@@ -59,6 +59,11 @@ pub fn router(state: AppState) -> Router {
         )
         .route("/approvals/{id}/decision", post(routes::decide))
         .route("/reminders/{id}/dismiss", post(routes::dismiss_reminder))
+        .route(
+            "/integrations",
+            get(routes::list_integrations).post(routes::create_integration),
+        )
+        .route("/integrations/{id}/ingress", post(routes::ingress))
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::require_bearer,

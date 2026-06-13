@@ -23,3 +23,9 @@ pub enum Reminder {}
 pub enum CalendarEvent {}
 #[derive(Clone, Copy, Debug)]
 pub enum Artifact {}
+#[derive(Clone, Copy, Debug)]
+pub enum Integration {}
+#[derive(Clone, Copy, Debug)]
+pub enum IngressEvent {}
+#[derive(Clone, Copy, Debug)]
+pub enum OutboxEvent {}

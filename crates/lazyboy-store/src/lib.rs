@@ -12,6 +12,6 @@ mod row;
 pub use error::StoreError;
 pub use open::Store;
 pub use row::{
-    ApprovalRow, ArtifactRow, CalendarEventRow, DecisionRow, MessageRow, ReminderRow, RunRow,
-    SpaceRow, TaskRow,
+    ApprovalRow, ArtifactRow, CalendarEventRow, DecisionRow, IngressEventRow, IntegrationRow,
+    MessageRow, OutboxEventRow, ReminderRow, RunRow, SpaceRow, TaskRow,
 };

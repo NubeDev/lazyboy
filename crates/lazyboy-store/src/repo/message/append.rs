@@ -1,4 +1,4 @@
-use crate::repo::clock;
+use crate::repo::{clock, outbox};
 use crate::{Store, StoreError};
 use lazyboy_types::domain::{Identity, Message, MessageKind, Space};
 use lazyboy_types::Id;
@@ -26,8 +26,22 @@ pub async fn append(store: &Store, msg: NewMessage<'_>) -> Result<Id<Message>, S
     .bind(msg.kind.as_str())
     .bind(msg.body)
     .bind(clock::fmt(clock::now()))
-    .bind(msg.ref_id)
+    .bind(&msg.ref_id)
     .execute(store.pool())
     .await?;
+
+    // Messages are append-only; the outbox event carries the full row so
+    // a peer applies it as an idempotent insert (union merge), no LWW.
+    let event = serde_json::json!({
+        "op": "message.append",
+        "id": id.to_string(),
+        "space_id": msg.space_id.to_string(),
+        "author_identity_id": msg.author.to_string(),
+        "kind": msg.kind.as_str(),
+        "body": msg.body,
+        "ref_id": msg.ref_id,
+    });
+    outbox::record(store, "message", &id.to_string(), &event.to_string()).await?;
+
     Ok(id)
 }

@@ -8,10 +8,12 @@ members = [
     "crates/lazyboy-types",
     "crates/lazyboy-store",
     "crates/lazyboy-bridge",
+    "crates/lazyboy-ingress",
     "crates/lazyboy-core",
     "crates/lazyboy-adapters-host",
     "crates/lazyboy-cli",
     "crates/lazyboy-server",
+    "crates/lazyboy-sync",
 ]
 
 [workspace.package]
@@ -36,6 +38,10 @@ futures-util = "0.3"
 lazyboy-types = { path = "crates/lazyboy-types" }
 lazyboy-store = { path = "crates/lazyboy-store" }
 lazyboy-bridge = { path = "crates/lazyboy-bridge" }
+lazyboy-ingress = { path = "crates/lazyboy-ingress" }
 lazyboy-core = { path = "crates/lazyboy-core" }
 lazyboy-adapters-host = { path = "crates/lazyboy-adapters-host" }
 lazyboy-server = { path = "crates/lazyboy-server" }
+lazyboy-sync = { path = "crates/lazyboy-sync" }
+
+zenoh = "1"

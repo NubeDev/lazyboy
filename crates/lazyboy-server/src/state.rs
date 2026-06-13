@@ -58,6 +58,14 @@ impl AppState {
         self.identity("human").await
     }
 
+    /// The principal that authors ingress messages. Integration-sourced
+    /// timeline rows are not human-authored; MVP attributes them to the
+    /// node's `agent` principal rather than minting a per-integration
+    /// identity (deferred with the rest of the membership model, R4).
+    pub async fn ingress_author(&self) -> Result<Id<Identity>, ApiError> {
+        self.identity("agent").await
+    }
+
     async fn identity(&self, kind: &str) -> Result<Id<Identity>, ApiError> {
         repo::identity::find_by_kind(&self.inner.store, kind)
             .await?
