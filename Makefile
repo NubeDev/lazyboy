@@ -107,3 +107,20 @@ backend-status:
 
 backend-logs:
 	@tail -f $(SERVER_LOG)
+
+# Full local dev: the backend (detached, via the pid file) plus the Vite
+# UI dev server in the foreground. The UI talks HTTP+SSE to the backend on
+# LAZYBOY_ADDR (its VITE_CORE_URL default is http://localhost:7878, which
+# matches). Ctrl-C stops Vite; the trap then tears the backend down too, so
+# `make dev` leaves nothing running.
+UI_DIR := ui/lazyboy-ui
+
+.PHONY: dev ui-install
+
+ui-install:
+	@test -d $(UI_DIR)/node_modules || (cd $(UI_DIR) && npm install)
+
+dev: ui-install backend-start
+	@trap '$(MAKE) backend-stop' EXIT INT TERM; \
+	  echo "ui dev server starting; backend on http://$(LAZYBOY_ADDR)"; \
+	  (cd $(UI_DIR) && npm run dev)
