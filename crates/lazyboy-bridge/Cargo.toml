@@ -1,0 +1,23 @@
+# The Goose seam. Talks to goosed only through the ACP contract
+# (SCOPE.md R3 "never fork Goose"); the live HTTP+WebSocket transport
+# is a host concern, so this crate abstracts it behind GooseClient and
+# ships a FakeGoose for tests. Importing run events into the store is
+# the bridge's job.
+[package]
+name = "lazyboy-bridge"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

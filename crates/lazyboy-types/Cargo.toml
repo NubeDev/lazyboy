@@ -1,0 +1,13 @@
+# Wire + domain types. Mobile-safe: no process spawn, no Goose seam,
+# no sqlx. Every other crate may depend on this; it depends on none.
+[package]
+name = "lazyboy-types"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+uuid.workspace = true
+time.workspace = true

@@ -1,0 +1,10 @@
+/target
+**/node_modules
+**/dist
+/bin/goose
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+
+/.claude/

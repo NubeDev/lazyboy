@@ -1,0 +1,21 @@
+# Product orchestration: turns a prompt into a run, drives Goose
+# through the bridge until an approval gate or end of turn, resolves
+# approvals, and reconciles after a crash. Host-only (owns the store
+# and a GooseClient); the UI reaches this only through a client
+# interface (SCOPE.md R2), never the bridge directly.
+[package]
+name = "lazyboy-core"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+lazyboy-bridge.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

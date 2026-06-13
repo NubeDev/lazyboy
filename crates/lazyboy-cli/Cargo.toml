@@ -1,0 +1,31 @@
+# The local shell: the thinnest program that wires the SQLite store, the
+# live goose transport, and the engine into a runnable step-1 demo (one
+# space, local, with goose, surviving restart). Host-side by definition
+# (it spawns nothing itself but drives the host transport), so it lives
+# outside the mobile-safe graph.
+[package]
+name = "lazyboy-cli"
+version = "0.0.0"
+edition.workspace = true
+rust-version = "1.85"
+license.workspace = true
+
+[[bin]]
+name = "lazyboy"
+path = "src/main.rs"
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+lazyboy-core.workspace = true
+lazyboy-bridge.workspace = true
+lazyboy-adapters-host.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+uuid.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+[dev-dependencies]
+axum = { version = "0.8", features = ["ws"] }
+futures-util = "0.3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net"] }

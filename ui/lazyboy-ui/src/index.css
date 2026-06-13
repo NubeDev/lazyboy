@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Claude-cowork-leaning palette: warm graphite surfaces, a clay/coral
+   accent, generous radii. Tokens are theme-mapped so shadcn-style
+   components read them as `bg-background`, `text-muted-foreground`, etc. */
+@theme {
+  --color-background: oklch(0.21 0.006 56);
+  --color-foreground: oklch(0.96 0.005 90);
+  --color-surface: oklch(0.25 0.007 56);
+  --color-surface-raised: oklch(0.29 0.008 56);
+  --color-border: oklch(0.34 0.008 56);
+  --color-muted: oklch(0.28 0.007 56);
+  --color-muted-foreground: oklch(0.71 0.008 70);
+  --color-accent: oklch(0.7 0.13 40);
+  --color-accent-foreground: oklch(0.18 0.01 40);
+  --color-success: oklch(0.72 0.12 150);
+  --color-danger: oklch(0.66 0.16 25);
+  --color-warning: oklch(0.78 0.12 75);
+
+  --radius-card: 0.875rem;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 999px;
+}

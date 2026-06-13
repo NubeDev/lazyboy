@@ -1,0 +1,32 @@
+# Host-only Goose transport. This is the single crate allowed to open
+# sockets to `goose serve` and (later) spawn it; keeping the live
+# HTTP+WebSocket transport here is what keeps lazyboy-bridge and the
+# mobile-safe crates free of reqwest/tungstenite (mirrors codeless R1).
+# MSRV floats above the workspace floor here because the transport deps
+# require it; no mobile-safe crate depends on this one.
+[package]
+name = "lazyboy-adapters-host"
+version = "0.0.0"
+edition.workspace = true
+rust-version = "1.85"
+license.workspace = true
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-bridge.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+async-trait.workspace = true
+tokio = { workspace = true, features = ["sync", "net", "rt", "time"] }
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["json"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "net"] }
+axum = { version = "0.8", features = ["ws"] }
+uuid = { workspace = true }
+lazyboy-core.workspace = true
+lazyboy-store.workspace = true
+lazyboy-types.workspace = true
+futures-util = "0.3"
