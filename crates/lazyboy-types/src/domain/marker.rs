@@ -29,3 +29,9 @@ pub enum Integration {}
 pub enum IngressEvent {}
 #[derive(Clone, Copy, Debug)]
 pub enum OutboxEvent {}
+#[derive(Clone, Copy, Debug)]
+pub enum Workflow {}
+#[derive(Clone, Copy, Debug)]
+pub enum WorkflowRun {}
+#[derive(Clone, Copy, Debug)]
+pub enum Group {}

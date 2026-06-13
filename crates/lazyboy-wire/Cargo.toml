@@ -1,0 +1,21 @@
+# The shared RpcClient wire DTOs (SCOPE.md "UI: one React app, two
+# shells"). Both backend shells project the store rows and core outcomes
+# onto the same JSON the TypeScript client consumes: lazyboy-server over
+# HTTP+SSE, lazyboy-tauri over Tauri commands. Factored out of the server
+# so the desktop shell reuses identical shapes without depending on axum.
+# Depends only on the mobile-host-neutral domain layer (types/store/core),
+# never on a transport.
+[package]
+name = "lazyboy-wire"
+version = "0.0.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+lazyboy-core.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+time.workspace = true

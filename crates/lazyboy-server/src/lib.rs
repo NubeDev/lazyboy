@@ -64,6 +64,20 @@ pub fn router(state: AppState) -> Router {
             get(routes::list_integrations).post(routes::create_integration),
         )
         .route("/integrations/{id}/ingress", post(routes::ingress))
+        .route(
+            "/workflows",
+            get(routes::list_workflows).post(routes::create_workflow),
+        )
+        .route("/workflows/{id}/enable", post(routes::enable_workflow))
+        .route("/workflows/{id}/disable", post(routes::disable_workflow))
+        .route("/workflows/{id}/fire", post(routes::fire_workflow))
+        .route("/groups", post(routes::create_group))
+        .route("/groups/{id}/members", post(routes::add_group_member))
+        .route("/spaces/{id}/members", post(routes::grant_membership))
+        .route(
+            "/feeds/{integration_id}/visibility",
+            post(routes::set_feed_visibility),
+        )
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),
             auth::require_bearer,

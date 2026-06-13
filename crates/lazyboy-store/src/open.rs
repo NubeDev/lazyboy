@@ -42,6 +42,9 @@ impl Store {
         sqlx::query(include_str!("migrations/0002_domain.sql"))
             .execute(&self.pool)
             .await?;
+        sqlx::query(include_str!("migrations/0003_workflows.sql"))
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 }

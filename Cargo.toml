@@ -12,7 +12,9 @@ members = [
     "crates/lazyboy-core",
     "crates/lazyboy-adapters-host",
     "crates/lazyboy-cli",
+    "crates/lazyboy-wire",
     "crates/lazyboy-server",
+    "crates/lazyboy-tauri",
     "crates/lazyboy-sync",
 ]
 
@@ -41,7 +43,9 @@ lazyboy-bridge = { path = "crates/lazyboy-bridge" }
 lazyboy-ingress = { path = "crates/lazyboy-ingress" }
 lazyboy-core = { path = "crates/lazyboy-core" }
 lazyboy-adapters-host = { path = "crates/lazyboy-adapters-host" }
+lazyboy-wire = { path = "crates/lazyboy-wire" }
 lazyboy-server = { path = "crates/lazyboy-server" }
+lazyboy-tauri = { path = "crates/lazyboy-tauri" }
 lazyboy-sync = { path = "crates/lazyboy-sync" }
 
 zenoh = "1"

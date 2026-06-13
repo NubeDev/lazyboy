@@ -21,6 +21,7 @@ lazyboy-core.workspace = true
 lazyboy-bridge.workspace = true
 lazyboy-ingress.workspace = true
 lazyboy-adapters-host.workspace = true
+lazyboy-wire.workspace = true
 axum.workspace = true
 tower-http.workspace = true
 futures-util.workspace = true

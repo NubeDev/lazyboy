@@ -1,0 +1,47 @@
+# The desktop-shell backend: the lazyboy core exposed as Tauri 2 commands
+# so the one React UI reaches it in-process through its TauriRpcClient
+# (SCOPE.md "UI: one React app, two shells"). The second backend shell
+# after lazyboy-server; both expose the same RpcClient surface and reuse
+# the same lazyboy-wire DTOs.
+#
+# Host-side by definition (owns the live goose transport via
+# adapters-host), so it lives outside the mobile-safe crate graph.
+#
+# The GUI/webview stack (tauri, its build tooling, system webkit) is
+# gated behind the non-default `app` feature so `cargo build`/`cargo test`
+# on default features exercise the pure command-body logic without
+# needing tauri's system dependencies.
+[package]
+name = "lazyboy-tauri"
+version = "0.0.0"
+edition.workspace = true
+rust-version = "1.85"
+license.workspace = true
+
+[features]
+default = []
+# Pulls in the webview/GUI stack and compiles the #[tauri::command]
+# wrappers and the Builder/event-channel wiring (src/app.rs). Off by
+# default so the Rust logic builds and tests without tauri system deps.
+app = ["dep:tauri", "dep:tauri-build"]
+
+[dependencies]
+lazyboy-types.workspace = true
+lazyboy-store.workspace = true
+lazyboy-core.workspace = true
+lazyboy-bridge.workspace = true
+lazyboy-adapters-host.workspace = true
+lazyboy-wire.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
+tracing.workspace = true
+tauri = { version = "2", optional = true }
+
+[build-dependencies]
+# Only used by build.rs under the `app` feature (see build.rs); optional
+# so default builds pull in no tauri build tooling.
+tauri-build = { version = "2", optional = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
