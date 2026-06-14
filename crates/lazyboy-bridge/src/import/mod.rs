@@ -10,4 +10,4 @@ mod update;
 
 pub use context::ImportContext;
 pub use outcome::Imported;
-pub use update::import_update;
+pub use update::{append_agent_message, import_update};

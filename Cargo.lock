@@ -2294,6 +2294,7 @@ dependencies = [
  "lazyboy-store",
  "lazyboy-types",
  "thiserror 1.0.69",
+ "time",
  "tokio",
 ]
 
@@ -2366,6 +2367,7 @@ dependencies = [
  "lazyboy-adapters-host",
  "lazyboy-bridge",
  "lazyboy-core",
+ "lazyboy-ingress",
  "lazyboy-store",
  "lazyboy-types",
  "lazyboy-wire",
@@ -2373,6 +2375,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tauri-build",
+ "time",
  "tokio",
  "tracing",
 ]

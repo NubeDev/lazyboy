@@ -19,8 +19,6 @@ pub async fn start_run(
 ) -> Result<Json<RunOutcomeDto>, ApiError> {
     let engine = state.engine().await?;
     engine.reconcile().await?;
-    let started = engine
-        .start_run(space_id, &body.prompt, &body.prompt)
-        .await?;
+    let started = engine.start_chat(space_id, &body.prompt).await?;
     Ok(Json(started.outcome.into()))
 }

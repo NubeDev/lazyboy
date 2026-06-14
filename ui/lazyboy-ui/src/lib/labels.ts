@@ -53,3 +53,24 @@ export function relativeTime(iso: string, now: number): string {
   if (hrs < 24) return `${hrs}h ago`;
   return `${Math.round(hrs / 24)}d ago`;
 }
+
+export function absoluteTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+// A pending reminder whose due time has passed needs the danger tone; a
+// fired or dismissed reminder is settled regardless of due_at.
+export function isOverdue(dueIso: string, now: number): boolean {
+  return Date.parse(dueIso) < now;
+}
+
+// A datetime-local input yields a naive local value ("2026-06-13T14:30");
+// the wire expects RFC3339, so anchor it to the browser's zone.
+export function localInputToIso(value: string): string {
+  return new Date(value).toISOString();
+}

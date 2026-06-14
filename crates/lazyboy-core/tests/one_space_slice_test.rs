@@ -109,7 +109,7 @@ async fn run_blocks_on_approval_then_completes() {
         RunStatus::WaitingApproval
     );
     assert_eq!(
-        repo::task::get(&fx.store, started.task_id)
+        repo::task::get(&fx.store, started.task_id.unwrap())
             .await
             .unwrap()
             .state,
@@ -130,13 +130,15 @@ async fn run_blocks_on_approval_then_completes() {
         RunStatus::Succeeded
     );
     assert_eq!(
-        repo::task::get(&fx.store, started.task_id)
+        repo::task::get(&fx.store, started.task_id.unwrap())
             .await
             .unwrap()
             .state,
         TaskState::Done
     );
-    // The timeline holds agent text, the tool request, the tool result.
+    // The timeline holds the agent text and the tool request (its approval
+    // card), but not the raw tool result: that stays in the event log so
+    // the channel is not filled with tool plumbing the agent narrates.
     let kinds: Vec<_> = repo::message::list(&fx.store, fx.space)
         .await
         .unwrap()
@@ -144,7 +146,50 @@ async fn run_blocks_on_approval_then_completes() {
         .map(|m| m.kind)
         .collect();
     assert!(kinds.contains(&MessageKind::ToolRequest));
-    assert!(kinds.contains(&MessageKind::ToolResult));
+    assert!(
+        !kinds.contains(&MessageKind::ToolResult),
+        "tool results stay in the event log, not the timeline"
+    );
+    // The result is still recorded as a run event for audit.
+    let events = repo::run::event_count(&fx.store, started.run_id)
+        .await
+        .unwrap();
+    assert!(events > 0, "tool result recorded in the event log");
+}
+
+/// goose streams a turn as many `agent_message_chunk` updates; the driver
+/// must coalesce a contiguous run of them into one timeline message, not
+/// one per chunk (the bug where a sentence showed as a column of words).
+#[tokio::test]
+async fn streamed_agent_chunks_coalesce_into_one_message() {
+    let fx = fixture().await;
+    let goose = FakeGoose::new();
+    goose.script(
+        &SessionId("fake-sess-1".into()),
+        vec![
+            Update::AgentMessage { text: "Hello".into() },
+            Update::AgentMessage { text: ", ".into() },
+            Update::AgentMessage { text: "world".into() },
+            Update::AgentMessage { text: "!".into() },
+            Update::TurnEnded { stopped: true },
+        ],
+    );
+    let engine = Engine::new(fx.store.clone(), goose, fx.agent);
+
+    engine.start_run(fx.space, "greet", "say hello").await.unwrap();
+
+    let agent_msgs: Vec<_> = repo::message::list(&fx.store, fx.space)
+        .await
+        .unwrap()
+        .into_iter()
+        .filter(|m| m.kind == MessageKind::Agent)
+        .collect();
+    assert_eq!(
+        agent_msgs.len(),
+        1,
+        "four streamed chunks must collapse to one timeline message"
+    );
+    assert_eq!(agent_msgs[0].body, "Hello, world!");
 }
 
 #[tokio::test]
@@ -308,7 +353,7 @@ async fn cancel_marks_the_run_cancelled_and_denies_its_approval() {
         RunStatus::Cancelled
     );
     assert_eq!(
-        repo::task::get(&fx.store, started.task_id)
+        repo::task::get(&fx.store, started.task_id.unwrap())
             .await
             .unwrap()
             .state,
@@ -401,5 +446,89 @@ async fn queue_lists_pending_approvals_across_the_workspace() {
             .unwrap()
             .len(),
         1
+    );
+}
+
+/// A chat turn is a conversation, not a task: `start_chat` must drive the
+/// agent without minting a task named after the message (the bug where
+/// "make a task, pick up lenny at 1pm" became a task with that literal
+/// title, and every chat line polluted the task list).
+#[tokio::test]
+async fn chat_turn_creates_no_task() {
+    let fx = fixture().await;
+    let goose = FakeGoose::new();
+    goose.script(
+        &SessionId("fake-sess-1".into()),
+        vec![
+            Update::AgentMessage {
+                text: "On it.".into(),
+            },
+            Update::TurnEnded { stopped: true },
+        ],
+    );
+    let engine = Engine::new(fx.store.clone(), goose, fx.agent);
+
+    let started = engine
+        .start_chat(fx.space, "make a new task, pick up lenny at 1pm")
+        .await
+        .unwrap();
+    assert!(
+        started.task_id.is_none(),
+        "a chat turn must not create a task"
+    );
+    let tasks = repo::task::list(&fx.store, fx.space).await.unwrap();
+    assert!(
+        tasks.is_empty(),
+        "chatting must not mint a task per message; got {tasks:?}"
+    );
+}
+
+/// Each goose session is fresh, so a follow-up like "close it" only works
+/// if the turn carries the recent conversation. Assert the second turn's
+/// prompt to goose includes the prior exchange and the current message.
+#[tokio::test]
+async fn chat_carries_recent_context() {
+    let fx = fixture().await;
+    let goose = Arc::new(FakeGoose::new());
+    goose.script(
+        &SessionId("fake-sess-1".into()),
+        vec![
+            Update::AgentMessage {
+                text: "Added it.".into(),
+            },
+            Update::TurnEnded { stopped: true },
+        ],
+    );
+    goose.script(
+        &SessionId("fake-sess-2".into()),
+        vec![
+            Update::AgentMessage {
+                text: "Closed it.".into(),
+            },
+            Update::TurnEnded { stopped: true },
+        ],
+    );
+    let engine = Engine::new(fx.store.clone(), goose.clone(), fx.agent);
+
+    engine
+        .start_chat(fx.space, "add a task to pick up Lenny")
+        .await
+        .unwrap();
+    engine.start_chat(fx.space, "close it").await.unwrap();
+
+    let prompts = goose.prompts();
+    assert_eq!(prompts.len(), 2, "one prompt per turn");
+    let second = &prompts[1].1;
+    assert!(
+        second.contains("pick up Lenny"),
+        "second turn carries the prior user message:\n{second}"
+    );
+    assert!(
+        second.contains("Added it."),
+        "second turn carries the prior agent reply:\n{second}"
+    );
+    assert!(
+        second.contains("close it"),
+        "second turn carries the current message:\n{second}"
     );
 }

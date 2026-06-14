@@ -11,13 +11,22 @@ use std::sync::Arc;
 /// the product never reaches past these five calls.
 #[async_trait]
 pub trait GooseClient: Send + Sync {
-    /// Open a fresh session and return its id (`session/new`).
-    async fn new_session(&self) -> Result<SessionId, BridgeError>;
+    /// Open a fresh session and return its id (`session/new`). `space_id`
+    /// scopes the session to one space: the host transport hands it to
+    /// goose as the lazyboy MCP server's binding header, so the agent's
+    /// lazyboy tools act on that space and no other.
+    async fn new_session(&self, space_id: &str) -> Result<SessionId, BridgeError>;
 
     /// Re-attach to an existing session after a crash (`session/load`,
     /// gated by the agent's `loadSession` capability). The driver then
-    /// re-reads `next_update` from goose's persisted history.
-    async fn load_session(&self, session: &SessionId) -> Result<(), BridgeError>;
+    /// re-reads `next_update` from goose's persisted history. `space_id`
+    /// re-binds the lazyboy MCP server exactly as `new_session` does, so
+    /// a resumed run keeps its space scope.
+    async fn load_session(
+        &self,
+        session: &SessionId,
+        space_id: &str,
+    ) -> Result<(), BridgeError>;
 
     /// Send a user prompt into a session (`session/prompt`).
     async fn prompt(&self, session: &SessionId, text: &str) -> Result<(), BridgeError>;
@@ -42,11 +51,11 @@ pub trait GooseClient: Send + Sync {
 /// connection without it being `Clone`.
 #[async_trait]
 impl<G: GooseClient> GooseClient for Arc<G> {
-    async fn new_session(&self) -> Result<SessionId, BridgeError> {
-        (**self).new_session().await
+    async fn new_session(&self, space_id: &str) -> Result<SessionId, BridgeError> {
+        (**self).new_session(space_id).await
     }
-    async fn load_session(&self, session: &SessionId) -> Result<(), BridgeError> {
-        (**self).load_session(session).await
+    async fn load_session(&self, session: &SessionId, space_id: &str) -> Result<(), BridgeError> {
+        (**self).load_session(session, space_id).await
     }
     async fn prompt(&self, session: &SessionId, text: &str) -> Result<(), BridgeError> {
         (**self).prompt(session, text).await

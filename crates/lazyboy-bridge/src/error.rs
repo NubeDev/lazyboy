@@ -12,4 +12,10 @@ pub enum BridgeError {
 
     #[error("goose session {0} not found")]
     UnknownSession(String),
+
+    /// Reading or writing the goose provider configuration (the
+    /// lazyboy-owned config and secrets files the supervisor launches
+    /// goose with) failed, or a settings write named an unknown provider.
+    #[error("goose config: {0}")]
+    Config(String),
 }

@@ -12,7 +12,7 @@ export default defineConfig({
     alias: { "@": path.resolve(__dirname, "./src") },
   },
   server: {
-    port: 5180,
+    port: 5181,
     strictPort: true,
   },
   // Top-level await in main.tsx (shell client selection) needs a target

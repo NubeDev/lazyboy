@@ -59,7 +59,7 @@ async fn approval_request_resolve_round_trips() {
     let task = repo::task::create(&store, space, "ship pricing", None)
         .await
         .unwrap();
-    let run = repo::run::create(&store, space, task).await.unwrap();
+    let run = repo::run::create(&store, space, Some(task)).await.unwrap();
     repo::task::attach_run(&store, task, run).await.unwrap();
     repo::run::set_session(&store, run, "goose-sess-1")
         .await
@@ -112,7 +112,7 @@ async fn approval_request_resolve_round_trips() {
 async fn needs_resume_finds_unexecuted_approval() {
     let (store, space, _human) = seeded().await;
     let task = repo::task::create(&store, space, "t", None).await.unwrap();
-    let run = repo::run::create(&store, space, task).await.unwrap();
+    let run = repo::run::create(&store, space, Some(task)).await.unwrap();
     repo::run::set_session(&store, run, "sess").await.unwrap();
     repo::run::set_status(&store, run, RunStatus::WaitingApproval)
         .await
@@ -139,7 +139,7 @@ async fn needs_resume_finds_unexecuted_approval() {
 async fn run_event_import_is_idempotent() {
     let (store, space, _human) = seeded().await;
     let task = repo::task::create(&store, space, "t", None).await.unwrap();
-    let run = repo::run::create(&store, space, task).await.unwrap();
+    let run = repo::run::create(&store, space, Some(task)).await.unwrap();
     let ev = || repo::run::NewRunEvent {
         run_id: run,
         seq: 7,

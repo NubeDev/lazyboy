@@ -10,6 +10,7 @@
 
 mod auth;
 mod error;
+mod mcp;
 mod routes;
 mod state;
 mod wire;
@@ -38,11 +39,21 @@ pub fn router(state: AppState) -> Router {
         .allow_headers(Any);
 
     Router::new()
-        .route("/spaces", get(routes::list_spaces))
+        .route("/health", get(routes::health))
+        .route("/goose/providers", get(routes::list_goose_providers))
+        .route(
+            "/goose/config",
+            get(routes::get_goose_config).post(routes::set_goose_config),
+        )
+        .route("/spaces", get(routes::list_spaces).post(routes::create_space))
         .route("/spaces/{id}/timeline", get(routes::timeline))
         .route("/spaces/{id}/pending", get(routes::list_pending))
-        .route("/spaces/{id}/tasks", get(routes::list_tasks))
+        .route(
+            "/spaces/{id}/tasks",
+            get(routes::list_tasks).post(routes::create_task),
+        )
         .route("/spaces/{id}/runs", get(routes::list_runs))
+        .route("/mcp", post(mcp::mcp))
         .route("/spaces/{id}/run", post(routes::start_run))
         .route("/spaces/{id}/subscribe", get(routes::subscribe))
         .route(
@@ -73,7 +84,10 @@ pub fn router(state: AppState) -> Router {
         .route("/workflows/{id}/fire", post(routes::fire_workflow))
         .route("/groups", post(routes::create_group))
         .route("/groups/{id}/members", post(routes::add_group_member))
-        .route("/spaces/{id}/members", post(routes::grant_membership))
+        .route(
+            "/spaces/{id}/members",
+            get(routes::list_members).post(routes::grant_membership),
+        )
         .route(
             "/feeds/{integration_id}/visibility",
             post(routes::set_feed_visibility),
@@ -97,6 +111,16 @@ pub async fn serve(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let store = Store::connect(db_url).await?;
     let state = AppState::new(store, goose_url, token);
+
+    // Bring goose up under the saved provider at boot. A missing provider
+    // is expected on first run (the operator configures one from the UI),
+    // so it is logged, not fatal; a real launch failure is also non-fatal
+    // so the server still serves the settings endpoints to fix it.
+    match state.goose().restart().await {
+        Ok(()) => tracing::info!("goose serve started under saved provider"),
+        Err(e) => tracing::warn!(%e, "goose not started; configure a provider in settings"),
+    }
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "lazyboy-server listening");
     axum::serve(listener, router(state)).await?;

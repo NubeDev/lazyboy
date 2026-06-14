@@ -45,6 +45,50 @@ impl Store {
         sqlx::query(include_str!("migrations/0003_workflows.sql"))
             .execute(&self.pool)
             .await?;
+        self.ensure_runs_task_optional().await?;
+        Ok(())
+    }
+
+    /// Make `agent_runs.task_id` nullable so a conversation turn can be a
+    /// run with no task (chat does not mint a task per message). Guarded by
+    /// the current column nullability so the table rebuild runs exactly
+    /// once per db, not on every connect. Foreign keys are disabled around
+    /// the rebuild because `DROP TABLE` implicitly deletes the rows the
+    /// other timeline tables reference; the FK graph is unchanged by the
+    /// rebuild (ids are preserved), so it is re-enabled immediately after.
+    async fn ensure_runs_task_optional(&self) -> Result<(), StoreError> {
+        let mut conn = self.pool.acquire().await?;
+        let notnull: i64 = sqlx::query_scalar(
+            "SELECT \"notnull\" FROM pragma_table_info('agent_runs') WHERE name = 'task_id'",
+        )
+        .fetch_one(conn.as_mut())
+        .await?;
+        if notnull == 0 {
+            return Ok(());
+        }
+
+        for stmt in [
+            "PRAGMA foreign_keys=OFF",
+            "BEGIN",
+            "CREATE TABLE agent_runs_new (\
+                 id TEXT PRIMARY KEY, \
+                 space_id TEXT NOT NULL REFERENCES spaces(id), \
+                 task_id TEXT REFERENCES tasks(id), \
+                 goose_session_id TEXT, \
+                 status TEXT NOT NULL, \
+                 started_at TEXT, \
+                 ended_at TEXT)",
+            "INSERT INTO agent_runs_new (id, space_id, task_id, goose_session_id, status, \
+                 started_at, ended_at) \
+                 SELECT id, space_id, task_id, goose_session_id, status, started_at, ended_at \
+                 FROM agent_runs",
+            "DROP TABLE agent_runs",
+            "ALTER TABLE agent_runs_new RENAME TO agent_runs",
+            "COMMIT",
+            "PRAGMA foreign_keys=ON",
+        ] {
+            sqlx::query(stmt).execute(conn.as_mut()).await?;
+        }
         Ok(())
     }
 }

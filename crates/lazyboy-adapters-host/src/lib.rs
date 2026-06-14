@@ -11,6 +11,8 @@
 
 mod client;
 mod conn;
+pub mod goose;
 mod wire;
 
 pub use client::GooseServeClient;
+pub use goose::{GooseConfigStore, GooseSupervisor, ProviderSpec, Selection, PROVIDERS};

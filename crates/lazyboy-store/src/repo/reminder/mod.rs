@@ -5,10 +5,12 @@
 
 mod create;
 mod due;
+mod get;
 mod list;
 mod set_status;
 
 pub use create::{create, NewReminder};
 pub use due::due;
+pub use get::get;
 pub use list::list;
 pub use set_status::set_status;

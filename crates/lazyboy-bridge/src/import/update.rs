@@ -20,18 +20,24 @@ pub async fn import_update(
 ) -> Result<Imported, BridgeError> {
     match update {
         Update::AgentMessage { text } => {
+            // Record the chunk in the audit log (one event row per chunk),
+            // but hand the text back for the driver to coalesce into a
+            // single timeline message — see `Imported::AgentChunk`.
             record_event(store, ctx, seq, "agent_message", text).await?;
-            append(store, ctx, MessageKind::Agent, text, None).await?;
-            Ok(Imported::Recorded)
+            Ok(Imported::AgentChunk { text: text.clone() })
         }
 
         Update::ToolResult {
             tool_name,
             output_json,
         } => {
+            // Tool results stay in the durable event log (audit) and still
+            // surface as artifacts when they carry an output locator, but
+            // they are no longer dumped into the timeline as raw
+            // `{name}: {json}` rows: that filled the channel with tool
+            // plumbing the agent already narrates in its own message.
+            let _ = tool_name;
             record_event(store, ctx, seq, "tool_result", output_json).await?;
-            let body = format!("{tool_name}: {output_json}");
-            append(store, ctx, MessageKind::ToolResult, &body, None).await?;
             import_artifact(store, ctx, output_json).await?;
             Ok(Imported::Recorded)
         }
@@ -135,6 +141,19 @@ async fn record_event(
     )
     .await?;
     Ok(())
+}
+
+/// Append the coalesced text of a run of streamed agent chunks as one
+/// timeline message. The driver calls this to flush its buffer once the
+/// contiguous chunk run ends (a non-chunk update or turn end), so the
+/// timeline shows one agent message per turn while the event log keeps
+/// the per-chunk audit rows.
+pub async fn append_agent_message(
+    store: &Store,
+    ctx: &ImportContext,
+    text: &str,
+) -> Result<(), BridgeError> {
+    append(store, ctx, MessageKind::Agent, text, None).await
 }
 
 async fn append(

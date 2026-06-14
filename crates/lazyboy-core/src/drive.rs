@@ -1,4 +1,4 @@
-use lazyboy_bridge::{import_update, GooseClient, ImportContext, Imported};
+use lazyboy_bridge::{append_agent_message, import_update, GooseClient, ImportContext, Imported};
 use lazyboy_types::domain::{AgentRun, RunStatus, TaskState};
 use lazyboy_types::Id;
 
@@ -38,18 +38,35 @@ impl<G: GooseClient> Engine<G> {
 
         lazyboy_store::repo::run::set_status(&self.store, run_id, RunStatus::Running).await?;
 
+        // goose streams an agent turn as many `agent_message_chunk`
+        // updates; accumulate consecutive chunks and write one timeline
+        // message at the boundary, so the timeline shows a turn as a
+        // single message rather than one row per token. The buffer is
+        // flushed before any non-chunk update (tool result, approval,
+        // turn end) and at stream end, so message order is preserved.
+        let mut agent_buf = String::new();
+
         loop {
             let Some(update) = self.goose.next_update(&session).await? else {
+                self.flush_agent(&ctx, &mut agent_buf).await?;
                 self.end_run(run_id, false).await?;
                 return Ok(DriveStop::Drained);
             };
             let seq = self.next_seq(run_id);
             match import_update(&self.store, &ctx, seq, &update).await? {
-                Imported::Recorded => continue,
+                Imported::AgentChunk { text } => {
+                    agent_buf.push_str(&text);
+                    continue;
+                }
+                Imported::Recorded => {
+                    self.flush_agent(&ctx, &mut agent_buf).await?;
+                    continue;
+                }
                 Imported::AwaitingApproval {
                     approval_id,
                     request_id,
                 } => {
+                    self.flush_agent(&ctx, &mut agent_buf).await?;
                     self.remember_request(approval_id, request_id);
                     lazyboy_store::repo::run::set_status(
                         &self.store,
@@ -62,11 +79,28 @@ impl<G: GooseClient> Engine<G> {
                     return Ok(DriveStop::Approval);
                 }
                 Imported::TurnEnded { succeeded } => {
+                    self.flush_agent(&ctx, &mut agent_buf).await?;
                     self.end_run(run_id, succeeded).await?;
                     return Ok(DriveStop::Ended { succeeded });
                 }
             }
         }
+    }
+
+    /// Write the buffered agent-chunk text as one timeline message and
+    /// clear the buffer. A no-op when the buffer is empty, so flushing at
+    /// every boundary is safe.
+    async fn flush_agent(
+        &self,
+        ctx: &ImportContext,
+        buf: &mut String,
+    ) -> Result<(), CoreError> {
+        if buf.is_empty() {
+            return Ok(());
+        }
+        append_agent_message(&self.store, ctx, buf).await?;
+        buf.clear();
+        Ok(())
     }
 
     async fn end_run(&self, run_id: Id<AgentRun>, succeeded: bool) -> Result<(), CoreError> {
@@ -91,7 +125,11 @@ impl<G: GooseClient> Engine<G> {
         state: TaskState,
     ) -> Result<(), CoreError> {
         let run = lazyboy_store::repo::run::get(&self.store, run_id).await?;
-        lazyboy_store::repo::task::set_state(&self.store, run.task_id, state).await?;
+        // A chat turn has no task to advance; only task-backed runs (a
+        // workflow) drive a task's lifecycle.
+        if let Some(task_id) = run.task_id {
+            lazyboy_store::repo::task::set_state(&self.store, task_id, state).await?;
+        }
         Ok(())
     }
 }

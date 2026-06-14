@@ -29,11 +29,13 @@ app = ["dep:tauri", "dep:tauri-build"]
 lazyboy-types.workspace = true
 lazyboy-store.workspace = true
 lazyboy-core.workspace = true
+lazyboy-ingress.workspace = true
 lazyboy-bridge.workspace = true
 lazyboy-adapters-host.workspace = true
 lazyboy-wire.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+time = { version = "0.3", features = ["serde", "formatting", "parsing"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "sync", "time"] }
 tracing.workspace = true
 tauri = { version = "2", optional = true }

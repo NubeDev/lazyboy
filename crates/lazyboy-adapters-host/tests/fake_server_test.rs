@@ -20,7 +20,7 @@ async fn connect_open_session_and_drive_a_turn() {
         .expect("connect + initialize");
 
     // session/new acknowledges with 202; the id arrives over the WS.
-    let session = client.new_session().await.expect("new_session");
+    let session = client.new_session("test-space").await.expect("new_session");
     assert_eq!(session, SessionId("sess-1".into()));
 
     client

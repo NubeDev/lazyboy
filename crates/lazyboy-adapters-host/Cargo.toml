@@ -17,7 +17,7 @@ lazyboy-bridge.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
-tokio = { workspace = true, features = ["sync", "net", "rt", "time"] }
+tokio = { workspace = true, features = ["sync", "net", "rt", "time", "process"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["json"] }

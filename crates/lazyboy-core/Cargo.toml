@@ -15,6 +15,7 @@ lazyboy-types.workspace = true
 lazyboy-store.workspace = true
 lazyboy-bridge.workspace = true
 thiserror.workspace = true
+time.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]

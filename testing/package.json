@@ -1,0 +1,12 @@
+{
+  "name": "lazyboy-testing",
+  "private": true,
+  "type": "module",
+  "description": "Browser-driven UI tests for lazyboy, run against a live backend + Vite dev server.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
+  }
+}

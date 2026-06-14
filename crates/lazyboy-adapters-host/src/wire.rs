@@ -93,21 +93,26 @@ fn decode_session_update(params: Option<serde_json::Value>) -> Decoded {
             }
         }
         Some("tool_call_update") | Some("tool_call") => {
+            // goose emits a `tool_call` when a call starts (no content yet)
+            // and a `tool_call_update` when it finishes. Only the finished
+            // one carries a result worth importing; the start has null
+            // content and would otherwise land as a noise row. Skip any
+            // update whose content is absent or null.
+            let content = update.get("content").filter(|c| !c.is_null());
+            let Some(content) = content else {
+                return Decoded::Ignore;
+            };
             let tool_name = update
                 .get("title")
                 .or_else(|| update.get("toolName"))
                 .and_then(|t| t.as_str())
                 .unwrap_or_default()
                 .to_owned();
-            let output_json = update
-                .get("content")
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| "null".to_owned());
             Decoded::Update {
                 session,
                 update: Update::ToolResult {
                     tool_name,
-                    output_json,
+                    output_json: content.to_string(),
                 },
             }
         }

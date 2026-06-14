@@ -15,3 +15,15 @@ pub enum StoreError {
         detail: String,
     },
 }
+
+impl StoreError {
+    /// True when this is a SQL uniqueness conflict (a duplicate slug, a
+    /// re-used external ref). Callers turn it into a client-facing 400
+    /// without reaching into `sqlx` internals themselves.
+    pub fn is_unique_violation(&self) -> bool {
+        matches!(
+            self,
+            StoreError::Sqlx(sqlx::Error::Database(db)) if db.is_unique_violation()
+        )
+    }
+}
