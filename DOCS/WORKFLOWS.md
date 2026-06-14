@@ -74,10 +74,40 @@ later concern.
 
 The live scheduler/feed-watcher daemon that arms triggers, polls or
 receives webhooks, and delivers `FeedEvent`s is the **host-side
-integration point**, deliberately out of this layer. It builds on feeds
-(build step 3) and the team layer (build step 5), both now present. The
-core exposes the pure selection + invocation; the host wires the timer
-and the feed transport to it.
+integration point**, deliberately out of the core selection layer. It
+builds on feeds (build step 3) and the team layer (build step 5), both
+now present. The core exposes the pure selection + invocation; the host
+wires the timer and the feed transport to it.
+
+The **schedule half is now built** (stage-C tick, DOCS/GOOSE-FEATURES.md
+"Scheduler"):
+
+- Core (pure, mobile-safe): `Engine::dispatch_schedule_tick(since, at)`
+  fires every enabled schedule-triggered workflow whose cron matches a
+  minute in the half-open window `(since, at]`, each through the gated
+  `run_workflow` path. `repo::workflow::enabled_schedules` is its
+  cross-workspace candidate query.
+- Host (live clock, `lazyboy-adapters-host::Scheduler`): owns a
+  `tokio::time::interval`, advances `since` per tick, and builds a fresh
+  engine each tick exactly as the routes do. It lives in the host-only
+  crate — the same boundary that confines process spawn — so it never
+  enters the mobile-safe crate graph. `lazyboy-server::serve` spawns it
+  at boot (`LAZYBOY_SCHEDULE_INTERVAL_SECS`, default 60s).
+
+A **schedule trigger's `trigger_config_json`** is
+`{"cron": "<5-field UTC cron>", "space_id": "<id>"}`
+(`lazyboy_types::domain::ScheduleTrigger`). The cron is the standard
+`minute hour day-of-month month day-of-week`, each `*` or a comma list;
+ranges/steps are out of MVP scope (a comma list covers fixed instants
+without pulling a chrono-based cron crate into the mobile-safe graph).
+The `space_id` is load-bearing: a workflow row is workspace-scoped, but a
+run needs a space; a feed trigger gets its space from the inbound event,
+so a schedule must name its target space in the config.
+
+The **feed half** stays the documented host integration point: a live
+feed-watcher delivering `FeedEvent`s to `dispatch_feed_event` is still
+host-side and not yet wired (it waits on live webhook/poll transport,
+the DOCS/INGRESS.md host TODO).
 
 ## Membership and feed visibility — modeled, not enforced (R4)
 
