@@ -2251,8 +2251,10 @@ dependencies = [
  "reqwest 0.12.28",
  "serde",
  "serde_json",
+ "time",
  "tokio",
  "tokio-tungstenite 0.26.2",
+ "tracing",
  "uuid",
 ]
 
@@ -2293,6 +2295,7 @@ dependencies = [
  "lazyboy-bridge",
  "lazyboy-store",
  "lazyboy-types",
+ "serde_json",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -2385,6 +2388,7 @@ name = "lazyboy-types"
 version = "0.0.0"
 dependencies = [
  "serde",
+ "serde_json",
  "time",
  "uuid",
 ]
