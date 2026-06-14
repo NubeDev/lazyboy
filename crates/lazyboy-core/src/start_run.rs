@@ -140,7 +140,7 @@ impl<G: GooseClient> Engine<G> {
         repo::run::set_session(&self.store, run_id, session.as_str()).await?;
         self.append_prompt_event(run_id, raw_prompt).await?;
         self.goose.prompt(&session, framed).await?;
-        Ok(self.drive_outcome(run_id).await?)
+        self.drive_outcome(run_id).await
     }
 
     async fn drive_outcome(&self, run_id: Id<AgentRun>) -> Result<RunOutcome, CoreError> {

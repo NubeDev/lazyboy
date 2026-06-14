@@ -9,6 +9,7 @@
 //! prompt. Two files under the config dir:
 //!   - `goose.json`    — provider + model (non-secret)
 //!   - `goose-secrets.json` — keys by env-var name, mode 0600
+//!
 //! The secrets file is never returned to a caller; the store only reports
 //! which providers have a key set (SCOPE.md R5: the UI sees a flag, not
 //! the secret).
