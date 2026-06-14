@@ -50,10 +50,12 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at             TEXT NOT NULL
 );
 
+-- task_id is nullable: a chat turn is a run with no task, while a
+-- task-backed run (a workflow, or a run started from a task) sets it.
 CREATE TABLE IF NOT EXISTS agent_runs (
     id               TEXT PRIMARY KEY,
     space_id         TEXT NOT NULL REFERENCES spaces(id),
-    task_id          TEXT NOT NULL REFERENCES tasks(id),
+    task_id          TEXT REFERENCES tasks(id),
     goose_session_id TEXT,
     status           TEXT NOT NULL,
     started_at       TEXT,

@@ -21,3 +21,4 @@ pub mod run;
 pub mod space;
 pub mod task;
 pub mod workflow;
+pub mod workspace;

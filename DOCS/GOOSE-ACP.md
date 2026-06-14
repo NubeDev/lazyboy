@@ -124,3 +124,40 @@ absent one, `initialize` still succeeds and the transport contract
 above is fully exercisable. Bridge code is written against this
 contract and tested with an in-process fake; the real binary is a
 config-time swap.
+
+## MCP servers — the lazyboy tool seam (verified v1.37.0, 2026-06-14)
+
+`session/new` / `session/load` take an `mcpServers` array; lazyboy puts
+its own MCP server there so the agent can read and act on the space it is
+scoped to (without it the agent has only goose's built-in tools and can
+never touch lazyboy). Probed against `bin/goose`:
+
+- `initialize` advertises `agentCapabilities.mcpCapabilities`:
+  `{"http": true, "sse": false}`. So the lazyboy MCP server is reached
+  over **streamable-HTTP**, not SSE; SSE entries are rejected.
+- The `mcpServers` entry is a `type`-tagged enum. The HTTP form lazyboy
+  sends:
+  ```json
+  { "type": "http", "name": "lazyboy",
+    "url": "http://127.0.0.1:<lazyboy-port>/mcp",
+    "headers": [ { "name": "X-Lazyboy-Space", "value": "<space_id>" },
+                 { "name": "Authorization", "value": "Bearer <token>" } ] }
+  ```
+- `session/new` carrying this entry answers `202 Accepted` (the same
+  fire-and-acknowledge shape as the empty-array case). goose then dials
+  the URL and runs the MCP `initialize`/`tools/list` handshake against
+  it; the space id rides the header on every tool call, so the binding
+  is fixed by lazyboy and not forgeable by the model.
+- **Gating (R6):** goose only emits `session/request_permission` — the
+  approval gate — for tools it deems unsafe. lazyboy's read tools carry
+  `readOnlyHint: true` so they pass ungated. Un-gating the internal
+  *write* tool (`create_task`) against a live provider is the open polish
+  item: confirm whether goose's default mode prompts for it and, if so,
+  tune via tool annotation or an explicit per-tool allow before relying
+  on it for unattended workflows.
+
+The lazyboy MCP server itself (`lazyboy-server` `/mcp`) is a hand-rolled
+JSON-RPC endpoint mirroring how this crate hand-rolls the ACP wire; it is
+exercised in CI by `crates/lazyboy-server/tests/mcp.rs` without a live
+goose. The Tauri desktop shell does not yet host `/mcp`, so the agent's
+lazyboy tools are an HTTP-shell capability until desktop parity lands.

@@ -56,6 +56,13 @@ impl FakeGoose {
         self.inner.lock().unwrap().answers.clone()
     }
 
+    /// The (session, text) of every prompt sent, so a test can assert what
+    /// the bridge actually handed goose — e.g. that a chat turn carried the
+    /// recent conversation as context.
+    pub fn prompts(&self) -> Vec<(String, String)> {
+        self.inner.lock().unwrap().prompts.clone()
+    }
+
     fn trip(inner: &mut Inner) -> Result<(), BridgeError> {
         if std::mem::take(&mut inner.drop_next) {
             return Err(BridgeError::Transport("simulated goosed drop".into()));
@@ -66,13 +73,13 @@ impl FakeGoose {
 
 #[async_trait]
 impl GooseClient for FakeGoose {
-    async fn new_session(&self) -> Result<SessionId, BridgeError> {
+    async fn new_session(&self, _space_id: &str) -> Result<SessionId, BridgeError> {
         let mut inner = self.inner.lock().unwrap();
         inner.next_id += 1;
         Ok(SessionId(format!("fake-sess-{}", inner.next_id)))
     }
 
-    async fn load_session(&self, session: &SessionId) -> Result<(), BridgeError> {
+    async fn load_session(&self, session: &SessionId, _space_id: &str) -> Result<(), BridgeError> {
         let mut inner = self.inner.lock().unwrap();
         inner.loaded.push(session.0.clone());
         Ok(())

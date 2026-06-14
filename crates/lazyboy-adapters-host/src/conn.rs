@@ -157,21 +157,45 @@ impl Connection {
         method: &str,
         params: serde_json::Value,
     ) -> Result<Option<serde_json::Value>, BridgeError> {
+        // Session-scoped methods (`session/load`, `session/prompt`) must
+        // carry the session in an `Acp-Session-Id` header, not just in the
+        // params; goose serve rejects them 400 otherwise. `initialize` and
+        // `session/new` have no session yet, so the header is omitted —
+        // derived from the params' `sessionId` so it tracks every
+        // session-scoped call without a signature change.
+        let session_id = params
+            .get("sessionId")
+            .and_then(|v| v.as_str())
+            .map(str::to_owned);
         let body = serde_json::json!({
             "jsonrpc": "2.0", "id": id, "method": method, "params": params,
         });
-        let resp = self
+        let mut req = self
             .http
             .post(format!("{}/acp", self.base))
-            .header("acp-connection-id", &self.connection_id)
+            .header("acp-connection-id", &self.connection_id);
+        if let Some(session_id) = &session_id {
+            req = req.header("acp-session-id", session_id);
+        }
+        let resp = req
             .json(&body)
             .send()
             .await
             .map_err(|e| BridgeError::Transport(format!("{method} post: {e}")))?;
         if !resp.status().is_success() {
+            let status = resp.status();
+            // Surface goose's own explanation: a 4xx from `session/prompt`
+            // (a malformed turn, an unknown session, a provider rejection)
+            // carries the reason in the body, and dropping it leaves the
+            // bare status with nothing to act on.
+            let detail = resp.text().await.unwrap_or_default();
             return Err(BridgeError::Transport(format!(
-                "{method} post: status {}",
-                resp.status()
+                "{method} post: status {status}{}",
+                if detail.trim().is_empty() {
+                    String::new()
+                } else {
+                    format!(": {}", detail.trim())
+                }
             )));
         }
         let text = resp

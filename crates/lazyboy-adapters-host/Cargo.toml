@@ -14,10 +14,17 @@ license.workspace = true
 [dependencies]
 lazyboy-types.workspace = true
 lazyboy-bridge.workspace = true
+# The schedule clock drives the core's pure dispatch_schedule_tick. core
+# is host-only (owns the store + a GooseClient), so depending on it here
+# keeps the live scheduler in the host graph and out of the mobile-safe
+# one, the same boundary that confines process spawn to this crate.
+lazyboy-core.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 async-trait.workspace = true
-tokio = { workspace = true, features = ["sync", "net", "rt", "time"] }
+time.workspace = true
+tracing.workspace = true
+tokio = { workspace = true, features = ["sync", "net", "rt", "time", "process"] }
 tokio-tungstenite = "0.26"
 futures-util = "0.3"
 reqwest = { version = "0.12", default-features = false, features = ["json"] }
@@ -26,7 +33,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process", "net"] }
 axum = { version = "0.8", features = ["ws"] }
 uuid = { workspace = true }
-lazyboy-core.workspace = true
 lazyboy-store.workspace = true
 lazyboy-types.workspace = true
+time = { version = "0.3", features = ["macros"] }
 futures-util = "0.3"

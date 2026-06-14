@@ -11,3 +11,9 @@ license.workspace = true
 serde.workspace = true
 uuid.workspace = true
 time.workspace = true
+
+[dev-dependencies]
+# `macros` is test-only (the datetime! literals in schedule_trigger tests);
+# it stays out of the production dependency surface.
+time = { version = "0.3", features = ["macros"] }
+serde_json.workspace = true

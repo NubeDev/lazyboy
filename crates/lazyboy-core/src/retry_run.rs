@@ -26,10 +26,14 @@ impl<G: GooseClient> Engine<G> {
 
         let task_id = prior.task_id;
         let new_run = repo::run::create(&self.store, prior.space_id, task_id).await?;
-        repo::task::attach_run(&self.store, task_id, new_run).await?;
-        repo::task::set_state(&self.store, task_id, TaskState::Running).await?;
+        // A task-backed run (a workflow) re-attaches and re-opens its task;
+        // a retried chat turn has no task to touch.
+        if let Some(task_id) = task_id {
+            repo::task::attach_run(&self.store, task_id, new_run).await?;
+            repo::task::set_state(&self.store, task_id, TaskState::Running).await?;
+        }
 
-        let session = self.goose.new_session().await?;
+        let session = self.goose.new_session(&prior.space_id.to_string()).await?;
         repo::run::set_session(&self.store, new_run, session.as_str()).await?;
         repo::run::append_event(
             &self.store,
@@ -41,7 +45,9 @@ impl<G: GooseClient> Engine<G> {
             },
         )
         .await?;
-        self.goose.prompt(&session, &prompt).await?;
+        self.goose
+            .prompt(&session, &crate::start_run::frame_prompt(&prompt))
+            .await?;
 
         let outcome = match self.drive(new_run).await? {
             DriveStop::Approval => RunOutcome::AwaitingApproval,

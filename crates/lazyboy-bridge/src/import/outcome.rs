@@ -5,9 +5,19 @@ use lazyboy_types::Id;
 /// approval pauses the run until resolved; a turn end closes it.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Imported {
-    /// An ordinary update (agent text or tool result) landed in the
-    /// timeline; the driver keeps pulling.
+    /// An ordinary update (a tool result) landed in the timeline; the
+    /// driver keeps pulling.
     Recorded,
+
+    /// A streamed agent-message chunk. Its event row is already recorded
+    /// (the audit log is one row per chunk), but the timeline text is
+    /// returned to the driver to coalesce: goose streams a turn token by
+    /// token, and one timeline message per token is unreadable. The
+    /// driver buffers consecutive chunks and appends a single agent
+    /// message when the run reaches any other update or the turn ends.
+    /// Coalescing in the driver (not by mutating a row) keeps messages
+    /// append-only, which the outbox union-merge sync relies on.
+    AgentChunk { text: String },
 
     /// A permission request was captured as a pending approval. The
     /// driver must stop pulling and wait for a human, carrying the ACP

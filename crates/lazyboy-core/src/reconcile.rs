@@ -39,7 +39,9 @@ impl<G: GooseClient> Engine<G> {
 
     async fn reconcile_one(&self, approval: ApprovalRow) -> Result<Reconciled, CoreError> {
         let session = SessionId(approval.goose_session_id.clone());
-        self.goose.load_session(&session).await?;
+        self.goose
+            .load_session(&session, &approval.space_id.to_string())
+            .await?;
         self.reseed_seq(approval.agent_run_id).await?;
 
         // Re-drive to the gate. The replayed PermissionRequested lands a

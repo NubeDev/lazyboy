@@ -13,4 +13,4 @@ mod import;
 
 pub use acp::{Decision, FakeGoose, GooseClient, PermissionRequest, SessionId, ToolCall, Update};
 pub use error::BridgeError;
-pub use import::{import_update, ImportContext, Imported};
+pub use import::{append_agent_message, import_update, ImportContext, Imported};

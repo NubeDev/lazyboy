@@ -71,7 +71,7 @@ pub async fn run(
     }
 
     let before = repo::message::list(store, cfg.space).await?.len();
-    let started = engine.start_run(cfg.space, prompt, prompt).await?;
+    let started = engine.start_chat(cfg.space, prompt).await?;
     print_new_messages(store, cfg, before).await?;
     report_outcome(&started.outcome, store, cfg).await?;
     Ok(())
@@ -147,12 +147,10 @@ pub async fn cancel(store: &Store, cfg: &Config, run_id: Id<AgentRun>) -> Result
     let run = repo::run::get(store, run_id).await?;
     repo::approval::deny_pending_for_run(store, run_id, cfg.human).await?;
     repo::run::set_status(store, run_id, lazyboy_types::domain::RunStatus::Cancelled).await?;
-    repo::task::set_state(
-        store,
-        run.task_id,
-        lazyboy_types::domain::TaskState::Cancelled,
-    )
-    .await?;
+    // A chat turn has no task; only a task-backed run cancels its task.
+    if let Some(task_id) = run.task_id {
+        repo::task::set_state(store, task_id, lazyboy_types::domain::TaskState::Cancelled).await?;
+    }
     println!("cancelled run {run_id}");
     Ok(())
 }

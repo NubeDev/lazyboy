@@ -11,6 +11,16 @@ interface Props {
 export function TaskPanel({ tasks, runs }: Props) {
   return (
     <aside className="flex w-80 shrink-0 flex-col gap-6 overflow-y-auto border-l border-border bg-surface px-4 py-5">
+      <TaskPanelContent tasks={tasks} runs={runs} />
+    </aside>
+  );
+}
+
+// The sections without the <aside> chrome, so the tabbed rail in SpacePanels
+// can embed them without nesting a second complementary landmark.
+export function TaskPanelContent({ tasks, runs }: Props) {
+  return (
+    <>
       <section>
         <h2 className="mb-3 flex items-center gap-2 text-xs uppercase tracking-wide text-muted-foreground">
           <ListTodo className="size-4" /> Tasks
@@ -48,6 +58,6 @@ export function TaskPanel({ tasks, runs }: Props) {
           ))}
         </div>
       </section>
-    </aside>
+    </>
   );
 }

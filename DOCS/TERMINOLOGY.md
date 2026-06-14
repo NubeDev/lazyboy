@@ -143,9 +143,15 @@ whether steps wait on a human.
 What starts a workflow without someone typing a prompt. Two kinds:
 - **feed trigger** — an event on a space [feed](#feed) (email arrives, PR
   opened, message matches a rule).
-- **schedule trigger** — a clock (nightly, weekly), cron-shaped.
-- **NEW.** Today a run only starts from an explicit prompt; there is no
-  trigger mechanism.
+- **schedule trigger** — a clock (nightly, weekly), cron-shaped. Its
+  `trigger_config_json` is `{"cron": "<5-field UTC cron>", "space_id":
+  "<id>"}` (`ScheduleTrigger`): the cron says *when*, the space says
+  *where* the run lands (a workflow is workspace-scoped, so a schedule —
+  unlike a feed event — must name its target space). The live clock that
+  fires it is the host-side `Scheduler`; see
+  [WORKFLOWS.md](./WORKFLOWS.md#live-trigger-daemon-integration-point).
+- **NEW.** Today a run only starts from an explicit prompt; the schedule
+  trigger mechanism is built, the feed-watcher transport is not yet.
 
 ### workflow
 A saved definition of *trigger -> agent run (with tools) -> result back in

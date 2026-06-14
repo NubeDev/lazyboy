@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use lazyboy_core::RunOutcome;
 use lazyboy_store::{
     ApprovalRow, CalendarEventRow, DecisionRow, IntegrationRow, MessageRow, ReminderRow, RunRow,
-    SpaceRow, TaskRow, WorkflowRow,
+    SpaceMembershipRow, SpaceRow, TaskRow, WorkflowRow,
 };
 use lazyboy_types::domain::{
     AgentRun, Approval, ApprovalPolicy, ApprovalStatus, CalendarEvent, Decision, Group, Identity,
@@ -125,7 +125,9 @@ impl From<TaskRow> for TaskDto {
 pub struct RunDto {
     pub id: Id<AgentRun>,
     pub space_id: Id<Space>,
-    pub task_id: Id<Task>,
+    /// `None` for a chat turn (a run with no task); `Some` for a
+    /// task-backed run such as a workflow.
+    pub task_id: Option<Id<Task>>,
     pub goose_session_id: Option<String>,
     pub status: RunStatus,
 }
@@ -259,6 +261,23 @@ pub struct CreateReminderBody {
     pub due_at: String,
     #[serde(default)]
     pub task_id: Option<Id<Task>>,
+}
+
+/// `POST /spaces` body. The workspace is resolved server-side (single
+/// trust boundary, SCOPE R5), so the client supplies only the slug (the
+/// unique key within the workspace) and the human title.
+#[derive(Deserialize)]
+pub struct CreateSpaceBody {
+    pub slug: String,
+    pub title: String,
+}
+
+/// `POST /spaces/:id/tasks` body. The deterministic quick-add path the
+/// `/task` command bar shortcut uses: it opens a task with no agent run,
+/// distinct from `start_run` which drives goose.
+#[derive(Deserialize)]
+pub struct CreateTaskBody {
+    pub title: String,
 }
 
 /// `POST /spaces/:id/calendar` body. `external_ref` present marks a
@@ -447,4 +466,77 @@ pub struct FeedVisibilityBody {
 #[derive(Serialize)]
 pub struct CreatedIdDto {
     pub id: String,
+}
+
+/// A space membership projected for the UI: a user or group granted a
+/// role in a space. Modeled, not enforced in the MVP trust gate under R4
+/// (DOCS/WORKFLOWS.md); listing it lets the UI show the result of a grant.
+#[derive(Serialize)]
+pub struct MembershipDto {
+    pub id: String,
+    pub space_id: Id<Space>,
+    pub principal_kind: String,
+    pub principal_id: String,
+    pub role: String,
+}
+
+impl From<SpaceMembershipRow> for MembershipDto {
+    fn from(r: SpaceMembershipRow) -> Self {
+        Self {
+            id: r.id,
+            space_id: r.space_id,
+            principal_kind: r.principal_kind,
+            principal_id: r.principal_id,
+            role: r.role,
+        }
+    }
+}
+
+/// Reachability of the `goose serve` backend the node drives work
+/// through. Built by attempting the ACP connect/initialize handshake:
+/// `reachable` is whether it succeeded, `detail` carries the failure
+/// reason when it did not (a missing capability, a refused socket) so the
+/// UI can show why goose is down, not just that it is. `goose_url` is the
+/// configured base, echoed so the status surface can name the target.
+#[derive(Serialize)]
+pub struct HealthDto {
+    pub goose_url: String,
+    pub goose_reachable: bool,
+    pub goose_detail: Option<String>,
+}
+
+/// One selectable goose provider for the settings UI. `key_set` reflects
+/// whether a key is already stored for it (SCOPE.md R5: the UI sees the
+/// flag, never the secret); `requires_key` drives whether the form
+/// demands one. `models` are suggestions, not a closed set.
+#[derive(Serialize)]
+pub struct GooseProviderDto {
+    pub id: String,
+    pub display_name: String,
+    pub requires_key: bool,
+    pub key_set: bool,
+    pub models: Vec<String>,
+}
+
+/// The current goose provider selection plus live process state, so the
+/// settings UI can show what is configured and whether goose is running
+/// under it. Never carries the API key.
+#[derive(Serialize)]
+pub struct GooseConfigDto {
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub running: bool,
+}
+
+/// `POST /goose/config` body: pick a provider, optionally a model, and
+/// optionally set/replace the key. A `None` key keeps the stored one
+/// (so a model-only change need not re-enter it); an empty string clears
+/// it. Applying the change relaunches goose.
+#[derive(Deserialize)]
+pub struct SetGooseConfigBody {
+    pub provider: String,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub api_key: Option<String>,
 }

@@ -10,16 +10,21 @@
 
 mod auth;
 mod error;
+mod mcp;
 mod routes;
 mod state;
 mod wire;
 
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use axum::routing::{get, post};
 use axum::Router;
+use time::OffsetDateTime;
 use tower_http::cors::{Any, CorsLayer};
 
+use lazyboy_adapters_host::{Scheduler, SchedulerHandle};
+use lazyboy_bridge::BridgeError;
 use lazyboy_store::Store;
 
 pub use state::AppState;
@@ -38,11 +43,21 @@ pub fn router(state: AppState) -> Router {
         .allow_headers(Any);
 
     Router::new()
-        .route("/spaces", get(routes::list_spaces))
+        .route("/health", get(routes::health))
+        .route("/goose/providers", get(routes::list_goose_providers))
+        .route(
+            "/goose/config",
+            get(routes::get_goose_config).post(routes::set_goose_config),
+        )
+        .route("/spaces", get(routes::list_spaces).post(routes::create_space))
         .route("/spaces/{id}/timeline", get(routes::timeline))
         .route("/spaces/{id}/pending", get(routes::list_pending))
-        .route("/spaces/{id}/tasks", get(routes::list_tasks))
+        .route(
+            "/spaces/{id}/tasks",
+            get(routes::list_tasks).post(routes::create_task),
+        )
         .route("/spaces/{id}/runs", get(routes::list_runs))
+        .route("/mcp", post(mcp::mcp))
         .route("/spaces/{id}/run", post(routes::start_run))
         .route("/spaces/{id}/subscribe", get(routes::subscribe))
         .route(
@@ -73,7 +88,10 @@ pub fn router(state: AppState) -> Router {
         .route("/workflows/{id}/fire", post(routes::fire_workflow))
         .route("/groups", post(routes::create_group))
         .route("/groups/{id}/members", post(routes::add_group_member))
-        .route("/spaces/{id}/members", post(routes::grant_membership))
+        .route(
+            "/spaces/{id}/members",
+            get(routes::list_members).post(routes::grant_membership),
+        )
         .route(
             "/feeds/{integration_id}/visibility",
             post(routes::set_feed_visibility),
@@ -97,8 +115,47 @@ pub async fn serve(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let store = Store::connect(db_url).await?;
     let state = AppState::new(store, goose_url, token);
+
+    // Bring goose up under the saved provider at boot. A missing provider
+    // is expected on first run (the operator configures one from the UI),
+    // so it is logged, not fatal; a real launch failure is also non-fatal
+    // so the server still serves the settings endpoints to fix it.
+    match state.goose().restart().await {
+        Ok(()) => tracing::info!("goose serve started under saved provider"),
+        Err(e) => tracing::warn!(%e, "goose not started; configure a provider in settings"),
+    }
+
+    // The stage-C schedule clock: fire due schedule-triggered workflows on
+    // an interval, each through the gated run_workflow path (DOCS/
+    // GOOSE-FEATURES.md "Scheduler"). It lives host-side; the engine it
+    // builds per tick is the same per-connection engine the routes use.
+    // The handle is held for the process lifetime so the task is not
+    // aborted; dropping it on shutdown stops the clock.
+    let _schedule_clock = spawn_schedule_clock(state.clone());
+
     let listener = tokio::net::TcpListener::bind(addr).await?;
     tracing::info!(%addr, "lazyboy-server listening");
     axum::serve(listener, router(state)).await?;
     Ok(())
+}
+
+/// Spawn the host schedule clock against `state`'s per-connection engine
+/// factory. The poll interval is `LAZYBOY_SCHEDULE_INTERVAL_SECS`
+/// (default 60s, matching minute-granularity cron). Returns the handle
+/// the caller holds to keep the task alive.
+fn spawn_schedule_clock(state: AppState) -> SchedulerHandle {
+    let secs = std::env::var("LAZYBOY_SCHEDULE_INTERVAL_SECS")
+        .ok()
+        .and_then(|s| s.parse::<u64>().ok())
+        .filter(|s| *s > 0)
+        .unwrap_or(60);
+    let scheduler = Scheduler::new(Duration::from_secs(secs), OffsetDateTime::now_utc());
+    scheduler.spawn(move || {
+        let state = state.clone();
+        async move {
+            state.engine().await.map_err(|e| {
+                BridgeError::Transport(format!("build engine for schedule tick: {e:?}"))
+            })
+        }
+    })
 }

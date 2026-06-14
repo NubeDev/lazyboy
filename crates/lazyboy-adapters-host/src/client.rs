@@ -20,6 +20,21 @@ pub struct GooseServeClient {
     /// `session/load`. Goose rejects a relative `cwd` (`cwd must be an
     /// absolute path`), so it is canonicalized once at connect time.
     cwd: String,
+    /// The lazyboy MCP server goose connects back to, or `None` to open
+    /// sessions with no lazyboy tools (the CLI/Tauri shells, and tests).
+    /// When set, every session carries it in `mcpServers` so the agent
+    /// can read and act on the space it is scoped to.
+    lazyboy_mcp: Option<LazyboyMcp>,
+}
+
+/// The lazyboy MCP endpoint and bearer goose is told to reach. `url` is
+/// the server's own `/mcp` route; `token` is the single-tenant bearer
+/// (SCOPE.md R4) goose must present to pass the auth gate, or `None` in
+/// the auth-disabled dev mode.
+#[derive(Clone)]
+struct LazyboyMcp {
+    url: String,
+    token: Option<String>,
 }
 
 impl GooseServeClient {
@@ -67,7 +82,42 @@ impl GooseServeClient {
             conn,
             inboxes: Mutex::new(HashMap::new()),
             cwd,
+            lazyboy_mcp: None,
         })
+    }
+
+    /// Point every new/loaded session at the lazyboy MCP server at `url`,
+    /// presenting `token` as the bearer. This is what gives the agent its
+    /// lazyboy tools; without it sessions open with `mcpServers: []` and
+    /// the agent can only use goose's own tools.
+    pub fn with_lazyboy_mcp(mut self, url: String, token: Option<String>) -> Self {
+        self.lazyboy_mcp = Some(LazyboyMcp { url, token });
+        self
+    }
+
+    /// The `mcpServers` array for a session scoped to `space_id`. Empty
+    /// unless a lazyboy MCP endpoint was configured; when set, one HTTP
+    /// entry carrying the space-binding header (and the bearer, if any).
+    fn mcp_servers(&self, space_id: &str) -> serde_json::Value {
+        let Some(mcp) = &self.lazyboy_mcp else {
+            return serde_json::json!([]);
+        };
+        let mut headers = vec![serde_json::json!({
+            "name": "X-Lazyboy-Space",
+            "value": space_id,
+        })];
+        if let Some(token) = &mcp.token {
+            headers.push(serde_json::json!({
+                "name": "Authorization",
+                "value": format!("Bearer {token}"),
+            }));
+        }
+        serde_json::json!([{
+            "type": "http",
+            "name": "lazyboy",
+            "url": mcp.url,
+            "headers": headers,
+        }])
     }
 
     fn register(&self, session: &str) {
@@ -86,12 +136,15 @@ fn session_from(result: &serde_json::Value) -> Result<String, BridgeError> {
 
 #[async_trait]
 impl GooseClient for GooseServeClient {
-    async fn new_session(&self) -> Result<SessionId, BridgeError> {
+    async fn new_session(&self, space_id: &str) -> Result<SessionId, BridgeError> {
         let result = self
             .conn
             .request(
                 "session/new",
-                serde_json::json!({ "cwd": self.cwd, "mcpServers": [] }),
+                serde_json::json!({
+                    "cwd": self.cwd,
+                    "mcpServers": self.mcp_servers(space_id),
+                }),
             )
             .await?;
         let id = session_from(&result)?;
@@ -99,11 +152,15 @@ impl GooseClient for GooseServeClient {
         Ok(SessionId(id))
     }
 
-    async fn load_session(&self, session: &SessionId) -> Result<(), BridgeError> {
+    async fn load_session(&self, session: &SessionId, space_id: &str) -> Result<(), BridgeError> {
         self.conn
             .request(
                 "session/load",
-                serde_json::json!({ "sessionId": session.0, "cwd": self.cwd, "mcpServers": [] }),
+                serde_json::json!({
+                    "sessionId": session.0,
+                    "cwd": self.cwd,
+                    "mcpServers": self.mcp_servers(space_id),
+                }),
             )
             .await?;
         self.register(&session.0);

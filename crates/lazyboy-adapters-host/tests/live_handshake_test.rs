@@ -52,7 +52,7 @@ async fn handshake_and_new_session_over_ws() {
 
     // session/new acknowledges with 202; the id must come back over the
     // WS. If the transport waited on the POST body this would hang/empty.
-    let session = lazyboy_bridge::GooseClient::new_session(&client)
+    let session = lazyboy_bridge::GooseClient::new_session(&client, "test-space")
         .await
         .expect("new_session");
     assert!(

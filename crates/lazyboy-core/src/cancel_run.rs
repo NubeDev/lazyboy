@@ -27,7 +27,10 @@ impl<G: GooseClient> Engine<G> {
         let run = repo::run::get(&self.store, run_id).await?;
         repo::approval::deny_pending_for_run(&self.store, run_id, by).await?;
         repo::run::set_status(&self.store, run_id, RunStatus::Cancelled).await?;
-        repo::task::set_state(&self.store, run.task_id, TaskState::Cancelled).await?;
+        // A chat turn has no task; only a task-backed run cancels its task.
+        if let Some(task_id) = run.task_id {
+            repo::task::set_state(&self.store, task_id, TaskState::Cancelled).await?;
+        }
         Ok(())
     }
 }

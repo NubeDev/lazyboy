@@ -80,13 +80,17 @@ backend-init: backend-build
 	  && echo "already initialized ($(LAZYBOY_DB))" \
 	  || LAZYBOY_DB=$(LAZYBOY_DB) ./target/release/lazyboy init
 
-backend-start: backend-init
+# The server now supervises goose itself: it launches `goose serve` under
+# the provider configured from the UI (lazyboy owns the lifecycle), so
+# this target no longer starts goose separately. It passes GOOSE_BIN so
+# the supervisor finds the vendored binary regardless of cwd.
+backend-start: backend-init $(GOOSE_BIN)
 	@if [ -f $(SERVER_PID) ] && kill -0 $$(cat $(SERVER_PID)) 2>/dev/null; then \
 	  echo "already running (pid $$(cat $(SERVER_PID))); run 'make backend-stop' first"; exit 1; \
 	fi
 	@LAZYBOY_DB=$(LAZYBOY_DB) LAZYBOY_ADDR=$(LAZYBOY_ADDR) GOOSE_URL=$(LAZYBOY_GOOSE_URL) \
-	  LAZYBOY_TOKEN="$(LAZYBOY_TOKEN)" \
-	  ./target/release/lazyboy-server > $(SERVER_LOG) 2>&1 & echo $$! > $(SERVER_PID)
+	  GOOSE_BIN=$(abspath $(GOOSE_BIN)) LAZYBOY_TOKEN="$(LAZYBOY_TOKEN)" \
+	  setsid ./target/release/lazyboy-server > $(SERVER_LOG) 2>&1 < /dev/null & echo $$! > $(SERVER_PID)
 	@echo "lazyboy-server started (pid $$(cat $(SERVER_PID))) on http://$(LAZYBOY_ADDR), logging to $(SERVER_LOG)"
 
 backend-stop:
