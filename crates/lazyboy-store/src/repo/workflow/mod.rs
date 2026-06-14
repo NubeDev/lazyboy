@@ -4,6 +4,7 @@
 //! link each firing to the agent run it created.
 
 mod create;
+mod enabled_schedules;
 mod get;
 mod list;
 mod list_runs;
@@ -11,6 +12,7 @@ mod record_run;
 mod set_status;
 
 pub use create::{create, NewWorkflow};
+pub use enabled_schedules::enabled_schedules;
 pub use get::get;
 pub use list::list;
 pub use list_runs::list_runs;

@@ -15,11 +15,13 @@ mod reconcile;
 mod resolve_approval;
 mod retry_run;
 mod run_workflow;
+mod schedule_tick;
 mod start_run;
 mod workflow_agent;
 
 pub use engine::Engine;
 pub use error::CoreError;
 pub use reconcile::Reconciled;
+pub use schedule_tick::ScheduleTickReport;
 pub use start_run::{RunOutcome, StartedRun};
 pub use workflow_agent::FeedEvent;
