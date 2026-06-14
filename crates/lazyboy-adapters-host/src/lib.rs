@@ -12,7 +12,9 @@
 mod client;
 mod conn;
 pub mod goose;
+mod scheduler;
 mod wire;
 
 pub use client::GooseServeClient;
 pub use goose::{GooseConfigStore, GooseSupervisor, ProviderSpec, Selection, PROVIDERS};
+pub use scheduler::{Scheduler, SchedulerHandle};
